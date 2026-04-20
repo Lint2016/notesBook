@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="NoteBook — Your personal, offline-first note-taking app. Capture thoughts, ideas, and speaker notes securely from any device." />
+  <meta name="theme-color" content="#7c4dff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="NoteBook" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/jpeg" href="/assets/favicon.jpg" />
+  <link rel="apple-touch-icon" href="/assets/favicon.jpg" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/css/style.css" />
+
+  <title>NoteBook — Your Private Notes</title>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       AUTH SECTION
+       Shown to unauthenticated users
+  ══════════════════════════════════════════════ -->
+  <section id="auth-section" aria-label="Authentication">
+    <div class="auth-container">
+
+      <!-- Brand Logo + Name -->
+      <header class="auth-brand">
+        <img src="/assets/favicon.jpg" alt="NoteBook Logo" class="brand-logo" />
+        <h1>NoteBook</h1>
+        <p>Your private notes, anywhere.</p>
+      </header>
+
+      <!-- Auth Card -->
+      <div class="auth-card">
+
+        <!-- Tab Switcher -->
+        <div class="auth-tabs" role="tablist">
+          <button
+            id="tab-login"
+            class="auth-tab-btn active"
+            role="tab"
+            aria-selected="true"
+            aria-controls="login-form">
+            Sign In
+          </button>
+          <button
+            id="tab-signup"
+            class="auth-tab-btn"
+            role="tab"
+            aria-selected="false"
+            aria-controls="signup-form">
+            Create Account
+          </button>
+        </div>
+
+        <!-- ─── Login Form ─── -->
+        <form id="login-form" class="auth-form" novalidate aria-label="Sign in form">
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input
+              id="login-password"
+              type="password"
+              placeholder="Your password"
+              autocomplete="current-password"
+              required />
+          </div>
+          <p id="login-error" class="auth-error hidden" role="alert" aria-live="polite"></p>
+          <button type="submit" class="btn-primary" id="login-submit-btn">Sign In</button>
+        </form>
+
+        <!-- ─── Signup Form ─── -->
+        <form id="signup-form" class="auth-form hidden" novalidate aria-label="Create account form">
+          <div class="form-group">
+            <label for="signup-username">Username</label>
+            <input
+              id="signup-username"
+              type="text"
+              placeholder="Your display name"
+              autocomplete="username"
+              maxlength="30"
+              required />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input
+              id="signup-email"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <input
+              id="signup-password"
+              type="password"
+              placeholder="At least 6 characters"
+              autocomplete="new-password"
+              minlength="6"
+              required />
+          </div>
+          <p id="signup-error" class="auth-error hidden" role="alert" aria-live="polite"></p>
+          <button type="submit" class="btn-primary" id="signup-submit-btn">Create Account</button>
+        </form>
+
+      </div><!-- /.auth-card -->
+    </div><!-- /.auth-container -->
+  </section><!-- /#auth-section -->
+
+
+  <!-- ═══════════════════════════════════════════
+       APP / DASHBOARD SECTION
+       Shown once authenticated
+  ══════════════════════════════════════════════ -->
+  <div id="app-section" class="hidden" aria-label="Your notes dashboard">
+
+    <!-- ─── Sticky Header ─── -->
+    <header class="app-header">
+      <div class="header-brand">
+        <img src="/assets/favicon.jpg" alt="NoteBook" />
+        <span>NoteBook</span>
+      </div>
+
+      <p class="header-greeting">
+        Hey, <strong id="greeting-name"></strong> 👋
+      </p>
+
+      <button id="logout-btn" class="btn-logout" aria-label="Logout">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Logout
+      </button>
+    </header>
+
+    <!-- ─── Dashboard Body ─── -->
+    <main class="dash-body">
+
+      <!-- Stats bar -->
+      <div class="stats-bar">
+        <h2>My Notes</h2>
+        <span id="notes-count" class="notes-count-badge">0 notes</span>
+      </div>
+
+      <!-- Search -->
+      <div class="search-bar-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Search notes…"
+          aria-label="Search notes" />
+      </div>
+
+      <!-- Notes List -->
+      <div id="notes-list" aria-live="polite" aria-label="Notes list">
+        <!-- Dynamically populated by app.js -->
+      </div>
+
+    </main>
+
+    <!-- ─── Floating Action Button ─── -->
+    <button id="fab-btn" class="fab" aria-label="Create new note" title="New Note">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+
+  </div><!-- /#app-section -->
+
+
+  <!-- ═══════════════════════════════════════════
+       NOTE EDITOR MODAL
+  ══════════════════════════════════════════════ -->
+  <div
+    id="modal-backdrop"
+    class="modal-backdrop hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title">
+
+    <div class="modal">
+      <header class="modal-header">
+        <h3 id="modal-title">New Note</h3>
+        <button id="close-modal-btn" class="modal-close" aria-label="Close modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <input
+          id="note-title"
+          type="text"
+          placeholder="Speaker / Title"
+          maxlength="120"
+          aria-label="Note title" />
+        <textarea
+          id="note-content"
+          placeholder="Start typing your notes here…"
+          aria-label="Note content"></textarea>
+      </div>
+
+      <footer class="modal-footer">
+        <button id="cancel-modal-btn" class="btn-cancel">Cancel</button>
+        <button id="save-note-btn" class="btn-save">Save Note</button>
+      </footer>
+    </div>
+
+  </div><!-- /#modal-backdrop -->
+
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+
+  <!-- ═══════════════════════════════════════════
+       SCRIPTS
+       Uses type="module" for ES Modules (Firebase SDK v9+ compatible)
+  ══════════════════════════════════════════════ -->
+  <script type="module" src="/js/app.js"></script>
+
+</body>
+</html>
