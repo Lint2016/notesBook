@@ -10,36 +10,34 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/assets/favicon.jpg",
+      "src": "/assets/icon-512.png",
       "sizes": "1024x1024",
-      "type": "image/jpeg"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/assets/favicon.jpg",
-      "sizes": "192x192",
-      "type": "image/jpeg"
-    },
-    {
-      "src": "/assets/favicon.jpg",
-      "sizes": "512x512",
-      "type": "image/jpeg"
+      "src": "/assets/icon-512.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
       "src": "/assets/screenshot-desktop.png",
       "type": "image/png",
-      "sizes": "1920x1080",
+      "sizes": "1024x1024",
       "form_factor": "wide",
-      "label": "NoteBook on Desktop"
+      "label": "NoteBook Dashboard"
     },
     {
       "src": "/assets/screenshot-mobile.png",
       "type": "image/png",
-      "sizes": "1080x1920",
+      "sizes": "1024x1024",
       "form_factor": "narrow",
-      "label": "NoteBook on Mobile"
+      "label": "NoteBook Mobile View"
     }
   ]
 }
+
 
