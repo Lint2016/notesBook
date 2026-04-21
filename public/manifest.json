@@ -1,6 +1,7 @@
 {
   "name": "NoteBook",
   "short_name": "NoteBook",
+  "id": "/",
   "description": "Your personal offline-first note-taking app",
   "start_url": "/",
   "display": "standalone",
@@ -10,15 +11,35 @@
   "icons": [
     {
       "src": "/assets/favicon.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/assets/favicon.jpg",
       "sizes": "192x192",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "type": "image/jpeg"
     },
     {
       "src": "/assets/favicon.jpg",
       "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "type": "image/jpeg"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/screenshot-desktop.png",
+      "type": "image/png",
+      "sizes": "1920x1080",
+      "form_factor": "wide",
+      "label": "NoteBook on Desktop"
+    },
+    {
+      "src": "/assets/screenshot-mobile.png",
+      "type": "image/png",
+      "sizes": "1080x1920",
+      "form_factor": "narrow",
+      "label": "NoteBook on Mobile"
     }
   ]
 }
+
