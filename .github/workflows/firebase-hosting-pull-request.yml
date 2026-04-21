@@ -9,5 +9,5 @@ jobs:
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_NOTESBOOK_3D7FC }}'
+          firebaseServiceAccount: '${{ secrets.NOTESBOOK_KEY }}'
           projectId: notesbook-3d7fc

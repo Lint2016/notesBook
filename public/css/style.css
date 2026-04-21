@@ -226,6 +226,38 @@ body::before {
   box-shadow: 0 0 0 3px var(--clr-accent-glow);
 }
 
+/* Password Toggle */
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.password-toggle:hover {
+  color: var(--clr-accent-2);
+  background: var(--clr-surface-hover);
+}
+
+.password-toggle svg {
+  pointer-events: none;
+}
+
 /* Auth Button */
 .btn-primary {
   width: 100%;
