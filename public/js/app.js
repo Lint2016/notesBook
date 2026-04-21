@@ -35,6 +35,7 @@ const notesCountBadge = document.getElementById('notes-count');
 const searchInput     = document.getElementById('search-input');
 const fabBtn          = document.getElementById('fab-btn');
 const logoutBtn       = document.getElementById('logout-btn');
+const installBtn      = document.getElementById('install-btn');
 
 // Modal
 const modalBackdrop  = document.getElementById('modal-backdrop');
@@ -55,6 +56,41 @@ let currentUser       = null;
 let unsubscribeNotes  = null;   // Firestore listener cleanup
 let editingNoteId     = null;   // null = new note, string = edit mode
 let allNotes          = [];     // Full local copy for search
+
+// ─────────────────────────────────────────────
+// PWA Installation Storage
+// ─────────────────────────────────────────────
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent Chrome 67 and earlier from automatically showing the prompt
+  e.preventDefault();
+  // Stash the event so it can be triggered later
+  deferredPrompt = e;
+  // Show the install button
+  if (installBtn) installBtn.classList.remove('hidden');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  // Show the install prompt
+  deferredPrompt.prompt();
+  // Wait for the user to respond to the prompt
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log(`[PWA] User response to install prompt: ${outcome}`);
+  // We've used the prompt, and can't use it again, throw it away
+  deferredPrompt = null;
+  // Hide UI
+  installBtn.classList.add('hidden');
+});
+
+window.addEventListener('appinstalled', () => {
+  // Hide the app-provided install promotion
+  installBtn.classList.add('hidden');
+  // Clear the deferredPrompt so it can be garbage collected
+  deferredPrompt = null;
+  console.log('[PWA] App successfully installed');
+});
 
 // ─────────────────────────────────────────────
 // Auth State Observer — App Entry Point
