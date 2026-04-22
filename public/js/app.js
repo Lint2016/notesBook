@@ -10,7 +10,7 @@
  */
 
 import { signUp, signIn, logOut, onAuthChange } from './auth.js';
-import { addNote, updateNote, deleteNote, subscribeToNotes } from './db.js';
+import { addNote, updateNote, deleteNote, subscribeToNotes, togglePin } from './db.js';
 
 // ─────────────────────────────────────────────
 // DOM References
@@ -43,6 +43,7 @@ const modalBackdrop  = document.getElementById('modal-backdrop');
 const modalTitle     = document.getElementById('modal-title');
 const noteTitle      = document.getElementById('note-title');
 const noteCategory   = document.getElementById('note-category');
+const micBtn         = document.getElementById('mic-btn');
 const noteContent    = document.getElementById('note-content');
 const saveNoteBtn    = document.getElementById('save-note-btn');
 const closeModalBtn  = document.getElementById('close-modal-btn');
@@ -59,6 +60,8 @@ let unsubscribeNotes  = null;   // Firestore listener cleanup
 let editingNoteId     = null;   // null = new note, string = edit mode
 let allNotes          = [];     // Full local copy for search
 let currentCategory   = 'all';  // Active filter category
+let isListening       = false;  // Voice capture state
+let recognition       = null;   // SpeechRecognition instance
 
 // ─────────────────────────────────────────────
 // PWA Installation Storage
@@ -243,21 +246,27 @@ function renderNotes(notes) {
 
 function createNoteCard(note) {
   const card = document.createElement('article');
-  card.className = 'note-card';
+  card.className = `note-card ${note.pinned ? 'pinned' : ''}`;
   card.setAttribute('role', 'button');
   card.setAttribute('tabindex', '0');
   card.setAttribute('aria-label', `Note: ${note.title}`);
 
   const timeLabel = formatTimestamp(note.updatedAt);
   const category  = note.category || 'General';
+  const query     = searchInput.value.toLowerCase().trim();
 
   card.innerHTML = `
     <div class="note-card-header">
       <div class="note-card-title-wrap">
         <span class="note-category-pill ${category.toLowerCase()}">${category}</span>
-        <h3 class="note-card-title">${escapeHtml(note.title)}</h3>
+        <h3 class="note-card-title">${highlightText(note.title, query)}</h3>
       </div>
       <div class="note-card-actions">
+        <button class="card-action-btn pin ${note.pinned ? 'active' : ''}" aria-label="Toggle pin" data-id="${note.id}" title="${note.pinned ? 'Unpin' : 'Pin'}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 10V8a2 2 0 0 0-2-2h-1V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2v7l5 3 5-3v-7h2a2 2 0 0 0 2-2z"/>
+          </svg>
+        </button>
         <button class="card-action-btn edit" aria-label="Edit note" data-id="${note.id}">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -273,7 +282,7 @@ function createNoteCard(note) {
         </button>
       </div>
     </div>
-    <div class="note-card-preview">${parseMarkdown(note.content || 'No content')}</div>
+    <div class="note-card-preview">${parseMarkdown(highlightText(note.content || 'No content', query), true)}</div>
     <footer class="note-card-footer">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -295,6 +304,13 @@ function createNoteCard(note) {
   card.querySelector('.edit').addEventListener('click', (e) => {
     e.stopPropagation();
     openModal('edit', note);
+  });
+
+  // Pin button
+  card.querySelector('.pin').addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePin(currentUser.uid, note.id, note.pinned)
+      .catch(() => showToast('Failed to toggle pin', 'error'));
   });
 
   // Delete button
@@ -341,6 +357,14 @@ function applyFilters() {
     const matchesCategory = currentCategory === 'all' || n.category === currentCategory;
     
     return matchesSearch && matchesCategory;
+  });
+
+  // Sort by pinned FIRST, then by updatedAt
+  filtered.sort((a, b) => {
+    if (a.pinned !== b.pinned) return b.pinned ? 1 : -1;
+    const dateA = a.updatedAt?.toDate() || new Date(0);
+    const dateB = b.updatedAt?.toDate() || new Date(0);
+    return dateB - dateA;
   });
 
   renderNotes(filtered);
@@ -468,13 +492,89 @@ function escapeHtml(str = '') {
 }
 
 /**
- * Super lightweight Markdown-to-HTML parser.
- * Supports: # head, **bold**, *italic*, - list
+ * Highlights matches while preserving HTML safety.
  */
-function parseMarkdown(text = '') {
+function highlightText(text = '', query = '', isMarkdown = false) {
+  if (!query) return isMarkdown ? text : escapeHtml(text);
+  
+  const escaped = escapeHtml(text);
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return escaped.replace(regex, '<mark class="highlight">$1</mark>');
+}
+
+/**
+ * Voice Capture Logic
+ */
+function initVoiceCapture() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    micBtn.classList.add('hidden');
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = (event) => {
+    let interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        noteContent.value += (noteContent.value ? ' ' : '') + event.results[i][0].transcript;
+      }
+    }
+  };
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add('listening');
+    showToast('Listening...', 'success');
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+  };
+
+  recognition.onerror = () => {
+    showToast('Microphone error', 'error');
+    stopListening();
+  };
+}
+
+function toggleListening() {
+  if (!recognition) initVoiceCapture();
+  if (!recognition) return;
+
+  if (isListening) {
+    stopListening();
+  } else {
+    startListening();
+  }
+}
+
+function startListening() {
+  try {
+    recognition.start();
+  } catch (err) {
+    console.error('Speech recognition start failed', err);
+  }
+}
+
+function stopListening() {
+  if (recognition) recognition.stop();
+}
+
+micBtn.addEventListener('click', toggleListening);
+
+/**
+ * Super lightweight Markdown-to-HTML parser.
+ */
+function parseMarkdown(text = '', alreadyEscaped = false) {
   if (!text) return '';
   
-  let html = escapeHtml(text);
+  let html = alreadyEscaped ? text : escapeHtml(text);
 
   // Bold: **text**
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');

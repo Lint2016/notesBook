@@ -46,6 +46,7 @@ export async function addNote(uid, noteData) {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
     category: noteData.category || 'General',
+    pinned: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -77,6 +78,21 @@ export async function updateNote(uid, noteId, noteData) {
 export async function deleteNote(uid, noteId) {
   const ref = doc(db, 'users', uid, 'notes', noteId);
   return deleteDoc(ref);
+}
+
+/**
+ * Toggle the pinned status of a note.
+ * @param {string} uid
+ * @param {string} noteId
+ * @param {boolean} currentPinnedStatus
+ * @returns {Promise<void>}
+ */
+export async function togglePin(uid, noteId, currentPinnedStatus) {
+  const ref = doc(db, 'users', uid, 'notes', noteId);
+  return updateDoc(ref, {
+    pinned: !currentPinnedStatus,
+    updatedAt: serverTimestamp() // We update this to respect sorting if needed, or keep it the same
+  });
 }
 
 /**
