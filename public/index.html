@@ -199,6 +199,15 @@
           aria-label="Search notes" />
       </div>
 
+      <!-- Category Filters -->
+      <div class="category-filters" id="category-filters" role="tablist" aria-label="Filter by category">
+        <button class="filter-chip active" data-category="all">All</button>
+        <button class="filter-chip" data-category="General">General</button>
+        <button class="filter-chip" data-category="Work">Work</button>
+        <button class="filter-chip" data-category="Personal">Personal</button>
+        <button class="filter-chip" data-category="Ideas">Ideas</button>
+      </div>
+
       <!-- Notes List -->
       <div id="notes-list" aria-live="polite" aria-label="Notes list">
         <!-- Dynamically populated by app.js -->
@@ -243,6 +252,17 @@
           placeholder="Speaker / Title"
           maxlength="120"
           aria-label="Note title" />
+        
+        <div class="category-select-wrap">
+          <label for="note-category">Category</label>
+          <select id="note-category" aria-label="Select category">
+            <option value="General">General</option>
+            <option value="Work">Work</option>
+            <option value="Personal">Personal</option>
+            <option value="Ideas">Ideas</option>
+          </select>
+        </div>
+
         <textarea
           id="note-content"
           placeholder="Start typing your notes here…"

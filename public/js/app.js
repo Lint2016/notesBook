@@ -36,11 +36,13 @@ const searchInput     = document.getElementById('search-input');
 const fabBtn          = document.getElementById('fab-btn');
 const logoutBtn       = document.getElementById('logout-btn');
 const installBtn      = document.getElementById('install-btn');
+const categoryFilters = document.getElementById('category-filters');
 
 // Modal
 const modalBackdrop  = document.getElementById('modal-backdrop');
 const modalTitle     = document.getElementById('modal-title');
 const noteTitle      = document.getElementById('note-title');
+const noteCategory   = document.getElementById('note-category');
 const noteContent    = document.getElementById('note-content');
 const saveNoteBtn    = document.getElementById('save-note-btn');
 const closeModalBtn  = document.getElementById('close-modal-btn');
@@ -56,6 +58,7 @@ let currentUser       = null;
 let unsubscribeNotes  = null;   // Firestore listener cleanup
 let editingNoteId     = null;   // null = new note, string = edit mode
 let allNotes          = [];     // Full local copy for search
+let currentCategory   = 'all';  // Active filter category
 
 // ─────────────────────────────────────────────
 // PWA Installation Storage
@@ -121,7 +124,7 @@ function showApp(user) {
   // Subscribe to real-time notes
   unsubscribeNotes = subscribeToNotes(user.uid, (notes) => {
     allNotes = notes;
-    renderNotes(notes);
+    applyFilters();
   });
 }
 
@@ -246,10 +249,14 @@ function createNoteCard(note) {
   card.setAttribute('aria-label', `Note: ${note.title}`);
 
   const timeLabel = formatTimestamp(note.updatedAt);
+  const category  = note.category || 'General';
 
   card.innerHTML = `
     <div class="note-card-header">
-      <h3 class="note-card-title">${escapeHtml(note.title)}</h3>
+      <div class="note-card-title-wrap">
+        <span class="note-category-pill ${category.toLowerCase()}">${category}</span>
+        <h3 class="note-card-title">${escapeHtml(note.title)}</h3>
+      </div>
       <div class="note-card-actions">
         <button class="card-action-btn edit" aria-label="Edit note" data-id="${note.id}">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -266,7 +273,7 @@ function createNoteCard(note) {
         </button>
       </div>
     </div>
-    <p class="note-card-preview">${escapeHtml(note.content || 'No content')}</p>
+    <div class="note-card-preview">${parseMarkdown(note.content || 'No content')}</div>
     <footer class="note-card-footer">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -306,21 +313,38 @@ function renderSkeletons(count) {
 }
 
 // ─────────────────────────────────────────────
-// Search / Filter
-// ─────────────────────────────────────────────
 searchInput.addEventListener('input', () => {
-  const q = searchInput.value.toLowerCase().trim();
-  if (!q) {
-    renderNotes(allNotes);
-    return;
-  }
-  const filtered = allNotes.filter(
-    (n) =>
-      n.title.toLowerCase().includes(q) ||
-      (n.content || '').toLowerCase().includes(q)
-  );
-  renderNotes(filtered);
+  applyFilters();
 });
+
+// Category Filter Clicks
+categoryFilters.addEventListener('click', (e) => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+
+  // Update UI
+  document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+  chip.classList.add('active');
+
+  currentCategory = chip.dataset.category;
+  applyFilters();
+});
+
+function applyFilters() {
+  const q = searchInput.value.toLowerCase().trim();
+  
+  const filtered = allNotes.filter(n => {
+    const matchesSearch = !q || 
+      n.title.toLowerCase().includes(q) || 
+      (n.content || '').toLowerCase().includes(q);
+    
+    const matchesCategory = currentCategory === 'all' || n.category === currentCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  renderNotes(filtered);
+}
 
 // ─────────────────────────────────────────────
 // Note Modal
@@ -335,23 +359,27 @@ modalBackdrop.addEventListener('click', (e) => {
 function openModal(mode, note = null) {
   editingNoteId = mode === 'edit' ? note.id : null;
   modalTitle.textContent = mode === 'edit' ? 'Edit Note' : 'New Note';
-  noteTitle.value   = note ? note.title   : '';
-  noteContent.value = note ? note.content : '';
+  noteTitle.value      = note ? note.title    : '';
+  noteCategory.value   = note ? note.category : 'General';
+  noteContent.value    = note ? note.content  : '';
   saveNoteBtn.disabled = false;
   modalBackdrop.classList.remove('hidden');
   setTimeout(() => noteTitle.focus(), 120);
 }
 
+
 function closeModal() {
   modalBackdrop.classList.add('hidden');
   editingNoteId = null;
-  noteTitle.value = '';
-  noteContent.value = '';
+  noteTitle.value    = '';
+  noteCategory.value = 'General';
+  noteContent.value  = '';
 }
 
 saveNoteBtn.addEventListener('click', async () => {
-  const title   = noteTitle.value.trim();
-  const content = noteContent.value.trim();
+  const title    = noteTitle.value.trim();
+  const content  = noteContent.value.trim();
+  const category = noteCategory.value;
 
   if (!content && !title) {
     showToast('Please add a title or content.', 'error');
@@ -363,10 +391,10 @@ saveNoteBtn.addEventListener('click', async () => {
 
   try {
     if (editingNoteId) {
-      await updateNote(currentUser.uid, editingNoteId, { title, content });
+      await updateNote(currentUser.uid, editingNoteId, { title, content, category });
       showToast('Note updated ✓', 'success');
     } else {
-      await addNote(currentUser.uid, { title, content });
+      await addNote(currentUser.uid, { title, content, category });
       showToast('Note created ✓', 'success');
     }
     closeModal();
@@ -437,6 +465,35 @@ function escapeHtml(str = '') {
   const div = document.createElement('div');
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
+}
+
+/**
+ * Super lightweight Markdown-to-HTML parser.
+ * Supports: # head, **bold**, *italic*, - list
+ */
+function parseMarkdown(text = '') {
+  if (!text) return '';
+  
+  let html = escapeHtml(text);
+
+  // Bold: **text**
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Italic: *text*
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // Headings: # text (at start of line)
+  html = html.replace(/^# (.*$)/gm, '<h4>$1</h4>');
+  
+  // Lists: - text (at start of line)
+  html = html.replace(/^- (.*$)/gm, '<ul><li>$1</li></ul>');
+  // Cleanup adjacent <ul> tags
+  html = html.replace(/<\/ul><ul>/g, '');
+
+  // Handle newlines
+  html = html.replace(/\n/g, '<br>');
+
+  return html;
 }
 
 function formatTimestamp(ts) {

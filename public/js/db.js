@@ -45,6 +45,7 @@ export async function addNote(uid, noteData) {
   return addDoc(notesRef(uid), {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
+    category: noteData.category || 'General',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -62,6 +63,7 @@ export async function updateNote(uid, noteId, noteData) {
   return updateDoc(ref, {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
+    category: noteData.category || 'General',
     updatedAt: serverTimestamp()
   });
 }

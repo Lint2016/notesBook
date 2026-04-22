@@ -24,6 +24,13 @@
   --clr-text-muted: #7a7a9a;
   --clr-text-dark: #c0c0d8;
 
+  /* Category HSL Bases */
+  --cat-general: 280, 20%, 70%;
+  --cat-work: 200, 80%, 65%;
+  --cat-personal: 150, 60%, 60%;
+  --cat-ideas: 45, 90%, 65%;
+  --cat-important: 0, 80%, 65%;
+
   /* Typography */
   --font-main: 'Inter', sans-serif;
   --font-brand: 'Outfit', sans-serif;
@@ -492,6 +499,43 @@ body::before {
   box-shadow: 0 0 0 3px var(--clr-accent-glow);
 }
 
+/* --- Category Filters --- */
+.category-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 16px;
+  margin-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.category-filters::-webkit-scrollbar { display: none; }
+
+.filter-chip {
+  padding: 6px 14px;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: 50px;
+  color: var(--clr-text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.filter-chip:hover {
+  background: var(--clr-surface-hover);
+  color: var(--clr-text);
+}
+
+.filter-chip.active {
+  background: var(--clr-accent);
+  border-color: var(--clr-accent);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--clr-accent-glow);
+}
+
 /* --- Notes Grid --- */
 #notes-list {
   display: grid;
@@ -509,6 +553,9 @@ body::before {
   transition: var(--transition);
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   animation: cardSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
@@ -541,7 +588,7 @@ body::before {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .note-card-title {
@@ -587,8 +634,28 @@ body::before {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
+
+/* Category Pill in Card */
+.note-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-bottom: 4px;
+}
+
+.note-category-pill.general   { background: hsla(var(--cat-general), 0.15); color: hsl(var(--cat-general)); }
+.note-category-pill.work      { background: hsla(var(--cat-work), 0.15);    color: hsl(var(--cat-work)); }
+.note-category-pill.personal  { background: hsla(var(--cat-personal), 0.15); color: hsl(var(--cat-personal)); }
+.note-category-pill.ideas     { background: hsla(var(--cat-ideas), 0.15);    color: hsl(var(--cat-ideas)); }
 
 .note-card-footer {
   font-size: 0.74rem;
@@ -781,6 +848,39 @@ body::before {
   box-shadow: 0 0 0 3px var(--clr-accent-glow);
 }
 
+/* Category Select in Modal */
+.category-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.category-select-wrap label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+}
+
+#note-category {
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+#note-category:focus {
+  border-color: var(--clr-accent);
+  box-shadow: 0 0 0 3px var(--clr-accent-glow);
+}
+
 #note-content {
   width: 100%;
   min-height: 200px;
@@ -797,6 +897,13 @@ body::before {
   transition: var(--transition);
   -webkit-appearance: none;
 }
+
+/* Markdown Styling within cards */
+.note-card-preview b, .note-card-preview strong { color: var(--clr-text); font-weight: 700; }
+.note-card-preview i, .note-card-preview em     { color: var(--clr-accent-2); }
+.note-card-preview h4 { font-size: 0.95rem; color: #fff; margin: 8px 0 4px; }
+.note-card-preview ul { padding-left: 18px; margin: 4px 0; }
+.note-card-preview li { list-style-type: disc; margin-bottom: 2px; }
 
 #note-content::placeholder { color: var(--clr-text-muted); }
 #note-content:focus {
