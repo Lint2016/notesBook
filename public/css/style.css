@@ -833,10 +833,22 @@ body::before {
 }
 
 .note-card:hover {
-  border-color: rgba(124, 77, 255, 0.4);
-  background: var(--clr-surface-hover);
   transform: translateY(-4px);
+  border-color: var(--clr-accent);
+  background: var(--clr-surface-hover);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.note-card.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  border: 2px dashed var(--clr-accent);
+}
+
+.folder-item.drag-over {
+  background: rgba(124, 77, 255, 0.2) !important;
+  border: 1px dashed var(--clr-accent-2);
+  transform: scale(1.02);
 }
 
 .note-card:hover::before { 
@@ -1163,8 +1175,44 @@ body::before {
 
 .modal-tools {
   display: flex;
-  align-items: center;
   gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Styled Select Dropdowns */
+.modal-tools select {
+  appearance: none;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text-dark);
+  padding: 8px 32px 8px 12px;
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237c4dff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.modal-tools select:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--clr-accent);
+  color: #fff;
+}
+
+.modal-tools select:focus {
+  outline: none;
+  border-color: var(--clr-accent);
+  box-shadow: 0 0 0 2px var(--clr-accent-glow);
+}
+
+.modal-tools select option {
+  background: #1a1a1a;
+  color: #fff;
 }
 
 #note-category {

@@ -23,8 +23,20 @@ import {
   onSnapshot,
   serverTimestamp,
   query,
-  orderBy
+  orderBy,
+  enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Enable Offline Persistence
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code == 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled in one tab at a a time.
+    console.warn('Firestore persistence failed: Multiple tabs open');
+  } else if (err.code == 'unimplemented') {
+    // The current browser doesn't support all of the features required to enable persistence
+    console.warn('Firestore persistence failed: Browser not supported');
+  }
+});
 
 /**
  * Returns the Firestore collection reference for a user's notes.

@@ -494,9 +494,20 @@ function createNoteCard(note, index = 0) {
   card.className = `note-card ${note.pinned ? 'pinned' : ''}`;
   card.style.setProperty('--delay', `${index * 0.05}s`);
   card.setAttribute('role', 'button');
+  card.setAttribute('draggable', 'true');
 
   card.setAttribute('tabindex', '0');
   card.setAttribute('aria-label', `Note: ${note.title}`);
+
+  // Drag start
+  card.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('noteId', note.id);
+    card.classList.add('dragging');
+  });
+
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+  });
 
   const timeLabel = formatTimestamp(note.updatedAt);
   const category  = note.category || 'General';
@@ -655,6 +666,17 @@ function openModal(mode, note = null) {
   noteTitle.value      = note ? note.title    : '';
   noteCategory.value   = note ? note.category : 'General';
   noteContent.value    = note ? note.content  : '';
+  
+  // Smart Folder Pre-selection
+  if (note) {
+    noteFolder.value = note.folderId || 'none';
+  } else if (currentFolderId !== 'all' && currentFolderId !== 'pinned') {
+    // If we're inside a folder, default new notes to it
+    noteFolder.value = currentFolderId;
+  } else {
+    noteFolder.value = 'none';
+  }
+
   saveNoteBtn.disabled = false;
 
   // Reset tabs
@@ -1073,6 +1095,33 @@ function renderFolders(folders) {
       }
     });
 
+    // Drag and Drop listeners
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      item.classList.add('drag-over');
+    });
+
+    item.addEventListener('dragleave', () => {
+      item.classList.remove('drag-over');
+    });
+
+    item.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      const noteId = e.dataTransfer.getData('noteId');
+      const folderId = item.dataset.nav;
+
+      if (noteId && folderId) {
+        try {
+          const note = allNotes.find(n => n.id === noteId);
+          await updateNote(currentUser.uid, noteId, { ...note, folderId: folderId === 'all' ? null : folderId });
+          showToast('Note moved ✓');
+        } catch {
+          showToast('Failed to move note', 'error');
+        }
+      }
+    });
+
     item.querySelector('.delete-folder-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
       if (confirm('Delete this folder? Notes will NOT be deleted.')) {
@@ -1216,7 +1265,20 @@ micBtn.parentNode.insertBefore(reviewBtn, micBtn);
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then(() => console.log('[App] Service Worker registered'))
+      .then((reg) => {
+        console.log('[App] Service Worker registered');
+        
+        // Listen for updates
+        reg.onupdatefound = () => {
+          const installingWorker = reg.installing;
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New content is available; please refresh.
+              showToast('App update available! Refresh to sync.', 'success');
+            }
+          };
+        };
+      })
       .catch((err) => console.warn('[App] SW registration failed:', err));
   });
 }
