@@ -162,11 +162,6 @@
         <span>NoteBook</span>
       </div>
 
-
-      <p class="header-greeting">
-        Hey, <strong id="greeting-name"></strong> 👋
-      </p>
-
       <button id="install-btn" class="btn-install hidden" aria-label="Install App">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -245,6 +240,12 @@
 
     <!-- ─── Dashboard Body ─── -->
     <main class="dash-body">
+
+      <!-- Welcome Section -->
+      <div class="welcome-section">
+        <h1 id="dynamic-greeting">Welcome back,</h1>
+        <p id="greeting-name"></p>
+      </div>
 
       <!-- Stats bar -->
       <div class="stats-bar">

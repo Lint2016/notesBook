@@ -33,6 +33,7 @@ const loginError   = document.getElementById('login-error');
 const signupError  = document.getElementById('signup-error');
 
 // Dashboard
+const dynamicGreeting = document.getElementById('dynamic-greeting');
 const greetingName    = document.getElementById('greeting-name');
 const notesList       = document.getElementById('notes-list');
 const notesCountBadge = document.getElementById('notes-count');
@@ -337,9 +338,10 @@ function showApp(user) {
   authSection.classList.add('hidden');
   appSection.classList.remove('hidden');
 
-  // Display username from Firestore displayName
+  // Dynamic Greeting
   const name = user.displayName || user.email.split('@')[0];
-  greetingName.textContent = name;
+  dynamicGreeting.textContent = getDynamicGreeting() + ',';
+  greetingName.textContent    = name + ' 👋';
 
   // Show skeleton while first load fires
   renderSkeletons(3);
@@ -947,6 +949,13 @@ function formatTimestamp(ts) {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   }).format(date);
+}
+
+function getDynamicGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
 }
 
 /**
