@@ -362,6 +362,16 @@ function showAuth() {
   appSection.classList.add('hidden');
   authSection.classList.remove('hidden');
 
+  // Reset auth buttons state
+  const loginSubmitBtn  = document.getElementById('login-submit-btn');
+  const signupSubmitBtn = document.getElementById('signup-submit-btn');
+  if (loginSubmitBtn) {
+    setLoading(loginSubmitBtn, false, 'Sign In');
+  }
+  if (signupSubmitBtn) {
+    setLoading(signupSubmitBtn, false, 'Create Account');
+  }
+
   // Stop Firestore listeners
   if (unsubscribeNotes) {
     unsubscribeNotes();

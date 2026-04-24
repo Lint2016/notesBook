@@ -551,9 +551,23 @@ body::before {
 
 /* Greeting */
 .header-greeting {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--clr-text-muted);
   font-weight: 400;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  flex: 1;
+  padding: 0 8px;
+}
+
+@media (min-width: 768px) {
+  .header-greeting {
+    font-size: 0.8rem;
+    max-width: none;
+  }
 }
 
 .header-greeting strong {
