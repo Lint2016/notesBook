@@ -37,6 +37,8 @@ const fabBtn          = document.getElementById('fab-btn');
 const logoutBtn       = document.getElementById('logout-btn');
 const installBtn      = document.getElementById('install-btn');
 const categoryFilters = document.getElementById('category-filters');
+const searchClearBtn  = document.getElementById('search-clear-btn');
+
 
 // Modal
 const modalBackdrop  = document.getElementById('modal-backdrop');
@@ -238,16 +240,18 @@ function renderNotes(notes) {
     return;
   }
 
-  notes.forEach((note) => {
-    const card = createNoteCard(note);
+  notes.forEach((note, index) => {
+    const card = createNoteCard(note, index);
     notesList.appendChild(card);
   });
 }
 
-function createNoteCard(note) {
+function createNoteCard(note, index = 0) {
   const card = document.createElement('article');
   card.className = `note-card ${note.pinned ? 'pinned' : ''}`;
+  card.style.setProperty('--delay', `${index * 0.05}s`);
   card.setAttribute('role', 'button');
+
   card.setAttribute('tabindex', '0');
   card.setAttribute('aria-label', `Note: ${note.title}`);
 
@@ -330,8 +334,17 @@ function renderSkeletons(count) {
 
 // ─────────────────────────────────────────────
 searchInput.addEventListener('input', () => {
+  searchClearBtn.classList.toggle('visible', searchInput.value.length > 0);
   applyFilters();
 });
+
+searchClearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  searchClearBtn.classList.remove('visible');
+  applyFilters();
+  searchInput.focus();
+});
+
 
 // Category Filter Clicks
 categoryFilters.addEventListener('click', (e) => {
@@ -465,12 +478,23 @@ function confirmDelete(noteId, noteTitle) {
 // Toast Notifications
 // ─────────────────────────────────────────────
 function showToast(message, type = 'success') {
+  const icon = type === 'success' 
+    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.textContent = message;
+  toast.innerHTML = `${icon}<span>${message}</span>`;
   toastContainer.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+  
+  // Stagger removal if multiple toasts exist
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(-10px) scale(0.9)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
+
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -581,9 +605,16 @@ function parseMarkdown(text = '', alreadyEscaped = false) {
   
   // Italic: *text*
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  // Strikethrough: ~~text~~
+  html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
+
+  // Inline Code: `text`
+  html = html.replace(/`(.*?)`/g, '<code>$1</code>');
   
   // Headings: # text (at start of line)
   html = html.replace(/^# (.*$)/gm, '<h4>$1</h4>');
+
   
   // Lists: - text (at start of line)
   html = html.replace(/^- (.*$)/gm, '<ul><li>$1</li></ul>');

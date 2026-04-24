@@ -71,7 +71,29 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  scrollbar-gutter: stable;
 }
+
+/* --- Custom Scrollbar --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--clr-border);
+  border-radius: 10px;
+  border: 2px solid var(--clr-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--clr-text-muted);
+}
+
 
 /* Animated gradient background */
 body::before {
@@ -499,6 +521,38 @@ body::before {
   box-shadow: 0 0 0 3px var(--clr-accent-glow);
 }
 
+/* Clear Search Button */
+.search-clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--clr-surface-hover);
+  border: none;
+  color: var(--clr-text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.search-clear-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.search-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--clr-text);
+}
+
+
 /* --- Category Filters --- */
 .category-filters {
   display: flex;
@@ -556,13 +610,25 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  animation: cardSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: cardEntrance 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--delay, 0s);
 }
 
-@keyframes cardSlideIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes cardEntrance {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px) scale(0.98);
+    filter: blur(4px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
 }
+
 
 .note-card::before {
   content: '';
@@ -575,13 +641,21 @@ body::before {
 }
 
 .note-card:hover {
-  border-color: rgba(124, 77, 255, 0.3);
+  border-color: rgba(124, 77, 255, 0.4);
   background: var(--clr-surface-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
-.note-card:hover::before { opacity: 1; }
+.note-card:hover::before { 
+  opacity: 1; 
+  width: 100%;
+}
+
+.note-card:active {
+  transform: translateY(-2px) scale(0.99);
+}
+
 
 .note-card-header {
   display: flex;
@@ -601,13 +675,24 @@ body::before {
 
 .note-card-actions {
   display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s;
+  gap: 6px;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
   flex-shrink: 0;
 }
 
-.note-card:hover .note-card-actions { opacity: 1; }
+/* Always show actions on hover or for touch devices */
+.note-card:hover .note-card-actions,
+.note-card:focus-within .note-card-actions { 
+  opacity: 1; 
+}
+
+@media (hover: none) {
+  .note-card-actions {
+    opacity: 0.8;
+  }
+}
+
 
 .card-action-btn {
   width: 30px; height: 30px;
@@ -963,6 +1048,19 @@ body::before {
 .note-card-preview h4 { font-size: 0.95rem; color: #fff; margin: 8px 0 4px; }
 .note-card-preview ul { padding-left: 18px; margin: 4px 0; }
 .note-card-preview li { list-style-type: disc; margin-bottom: 2px; }
+.note-card-preview code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  color: var(--clr-accent-2);
+}
+.note-card-preview del {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
 
 /* Highlight */
 .highlight {
@@ -1043,15 +1141,20 @@ body::before {
   background: rgba(30, 30, 50, 0.95);
   border: 1px solid var(--clr-border);
   border-radius: 50px;
-  padding: 10px 18px;
+  padding: 8px 16px;
   font-size: 0.85rem;
   color: var(--clr-text);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   white-space: nowrap;
-  animation: toastIn 0.3s ease;
-  box-shadow: var(--shadow-card);
+  animation: toastIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
 }
+
 
 .toast.success { border-color: rgba(76, 175, 136, 0.4); color: #6ee7b7; }
 .toast.error   { border-color: rgba(255, 77, 109, 0.4); color: #ff8fa3; }
@@ -1163,8 +1266,5 @@ body::before {
   .fab { bottom: 32px; right: 32px; }
 }
 
-/* Scrollbar Styling */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--clr-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+/* Remove redundant scrollbar rules since we added refined ones at the top */
+
