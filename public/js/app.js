@@ -10,7 +10,11 @@
  */
 
 import { signUp, signIn, logOut, onAuthChange } from './auth.js';
-import { addNote, updateNote, deleteNote, subscribeToNotes, togglePin } from './db.js';
+import { 
+  addNote, updateNote, deleteNote, subscribeToNotes, togglePin,
+  addFolder, deleteFolder, subscribeToFolders 
+} from './db.js';
+
 
 // ─────────────────────────────────────────────
 // DOM References
@@ -38,18 +42,27 @@ const logoutBtn       = document.getElementById('logout-btn');
 const installBtn      = document.getElementById('install-btn');
 const categoryFilters = document.getElementById('category-filters');
 const searchClearBtn  = document.getElementById('search-clear-btn');
+const sidebar         = document.getElementById('sidebar');
+const sidebarToggle   = document.getElementById('sidebar-toggle');
+const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+const folderList      = document.getElementById('folder-list');
+const addFolderBtn    = document.getElementById('add-folder-btn');
+const navItems        = document.querySelectorAll('.nav-item');
+
 
 
 // Modal
 const modalBackdrop  = document.getElementById('modal-backdrop');
-const modalTitle     = document.getElementById('modal-title');
-const noteTitle      = document.getElementById('note-title');
 const noteCategory   = document.getElementById('note-category');
+const noteFolder     = document.getElementById('note-folder');
+const reminderBtn    = document.getElementById('reminder-btn');
+const exportPdfBtn   = document.getElementById('export-pdf-btn');
 const micBtn         = document.getElementById('mic-btn');
 const noteContent    = document.getElementById('note-content');
 const saveNoteBtn    = document.getElementById('save-note-btn');
 const closeModalBtn  = document.getElementById('close-modal-btn');
 const cancelModalBtn = document.getElementById('cancel-modal-btn');
+
 
 // Toast Container
 const toastContainer = document.getElementById('toast-container');
@@ -59,11 +72,15 @@ const toastContainer = document.getElementById('toast-container');
 // ─────────────────────────────────────────────
 let currentUser       = null;
 let unsubscribeNotes  = null;   // Firestore listener cleanup
+let unsubscribeFolders = null;
 let editingNoteId     = null;   // null = new note, string = edit mode
 let allNotes          = [];     // Full local copy for search
+let allFolders        = [];
 let currentCategory   = 'all';  // Active filter category
+let currentFolderId   = 'all';  // 'all', 'pinned', or folderId
 let isListening       = false;  // Voice capture state
 let recognition       = null;   // SpeechRecognition instance
+
 
 // ─────────────────────────────────────────────
 // PWA Installation Storage
@@ -130,6 +147,13 @@ function showApp(user) {
   unsubscribeNotes = subscribeToNotes(user.uid, (notes) => {
     allNotes = notes;
     applyFilters();
+    checkReminders(notes);
+  });
+
+  // Subscribe to folders
+  unsubscribeFolders = subscribeToFolders(user.uid, (folders) => {
+    allFolders = folders;
+    renderFolders(folders);
   });
 }
 
@@ -137,14 +161,20 @@ function showAuth() {
   appSection.classList.add('hidden');
   authSection.classList.remove('hidden');
 
-  // Stop Firestore listener
+  // Stop Firestore listeners
   if (unsubscribeNotes) {
     unsubscribeNotes();
     unsubscribeNotes = null;
   }
+  if (unsubscribeFolders) {
+    unsubscribeFolders();
+    unsubscribeFolders = null;
+  }
 
   allNotes = [];
+  allFolders = [];
 }
+
 
 // ─────────────────────────────────────────────
 // Auth Tab Switching
@@ -287,12 +317,17 @@ function createNoteCard(note, index = 0) {
       </div>
     </div>
     <div class="note-card-preview">${parseMarkdown(highlightText(note.content || 'No content', query), true)}</div>
+    ${note.reminder ? `<div class="reminder-badge" title="Reminder set">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>${formatReminder(note.reminder)}</span>
+    </div>` : ''}
     <footer class="note-card-footer">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
       </svg>
       ${timeLabel}
     </footer>`;
+
 
   // Edit on card click (but not on action buttons)
   card.addEventListener('click', (e) => {
@@ -369,8 +404,16 @@ function applyFilters() {
     
     const matchesCategory = currentCategory === 'all' || n.category === currentCategory;
     
-    return matchesSearch && matchesCategory;
+    let matchesFolder = true;
+    if (currentFolderId === 'pinned') {
+      matchesFolder = n.pinned;
+    } else if (currentFolderId !== 'all') {
+      matchesFolder = n.folderId === currentFolderId;
+    }
+    
+    return matchesSearch && matchesCategory && matchesFolder;
   });
+
 
   // Sort by pinned FIRST, then by updatedAt
   filtered.sort((a, b) => {
@@ -410,13 +453,19 @@ function closeModal() {
   editingNoteId = null;
   noteTitle.value    = '';
   noteCategory.value = 'General';
+  noteFolder.value   = 'none';
   noteContent.value  = '';
+  // Reset buttons
+  saveNoteBtn.disabled = false;
+  saveNoteBtn.textContent = 'Save Note';
 }
 
 saveNoteBtn.addEventListener('click', async () => {
   const title    = noteTitle.value.trim();
   const content  = noteContent.value.trim();
   const category = noteCategory.value;
+  const folderId = noteFolder.value === 'none' ? null : noteFolder.value;
+  const reminder = noteContent.dataset.reminder || null;
 
   if (!content && !title) {
     showToast('Please add a title or content.', 'error');
@@ -428,19 +477,22 @@ saveNoteBtn.addEventListener('click', async () => {
 
   try {
     if (editingNoteId) {
-      await updateNote(currentUser.uid, editingNoteId, { title, content, category });
+      await updateNote(currentUser.uid, editingNoteId, { title, content, category, folderId, reminder });
       showToast('Note updated ✓', 'success');
     } else {
-      await addNote(currentUser.uid, { title, content, category });
+      await addNote(currentUser.uid, { title, content, category, folderId, reminder });
       showToast('Note created ✓', 'success');
     }
+    delete noteContent.dataset.reminder;
     closeModal();
-  } catch {
+  } catch (err) {
+    console.error(err);
     showToast('Failed to save note. Try again.', 'error');
     saveNoteBtn.disabled = false;
     saveNoteBtn.textContent = 'Save Note';
   }
 });
+
 
 // ─────────────────────────────────────────────
 // Delete with Confirmation Dialog
@@ -594,11 +646,16 @@ micBtn.addEventListener('click', toggleListening);
 
 /**
  * Super lightweight Markdown-to-HTML parser.
+ * Now supports Checklists [ ] and [x]
  */
 function parseMarkdown(text = '', alreadyEscaped = false) {
   if (!text) return '';
   
   let html = alreadyEscaped ? text : escapeHtml(text);
+
+  // Checklists: [ ] or [x]
+  html = html.replace(/\[ \]\s(.*$)/gm, '<div class="checklist-item"><input type="checkbox" class="checklist-checkbox"><span class="checklist-text">$1</span></div>');
+  html = html.replace(/\[x\]\s(.*$)/gm, '<div class="checklist-item"><input type="checkbox" class="checklist-checkbox" checked><span class="checklist-text">$1</span></div>');
 
   // Bold: **text**
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -626,6 +683,7 @@ function parseMarkdown(text = '', alreadyEscaped = false) {
 
   return html;
 }
+
 
 function formatTimestamp(ts) {
   if (!ts) return 'Just now';
@@ -684,6 +742,211 @@ document.querySelectorAll('.password-toggle').forEach(btn => {
 });
 
 // ─────────────────────────────────────────────
+// Sidebar & Folder Logic
+// ─────────────────────────────────────────────
+sidebarToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+  sidebarBackdrop.classList.toggle('hidden');
+});
+
+sidebarBackdrop.addEventListener('click', () => {
+  sidebar.classList.remove('open');
+  sidebarBackdrop.classList.add('hidden');
+});
+
+// Navigation items
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    item.classList.add('active');
+    currentFolderId = item.dataset.nav;
+    applyFilters();
+    // Close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      sidebar.classList.remove('open');
+      sidebarBackdrop.classList.add('hidden');
+    }
+  });
+});
+
+addFolderBtn.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  const name = prompt('Enter folder name:');
+  if (name && name.trim()) {
+    try {
+      await addFolder(currentUser.uid, name);
+      showToast('Folder created ✓');
+    } catch {
+      showToast('Failed to create folder', 'error');
+    }
+  }
+});
+
+function renderFolders(folders) {
+  // To sidebar
+  folderList.innerHTML = folders.map(f => `
+    <li class="folder-item nav-item" data-nav="${f.id}">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span>${escapeHtml(f.name)}</span>
+      <button class="delete-folder-btn icon-btn" data-id="${f.id}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </li>
+  `).join('');
+
+  // Add click listeners to folders
+  folderList.querySelectorAll('.folder-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      item.classList.add('active');
+      currentFolderId = item.dataset.nav;
+      applyFilters();
+      if (window.innerWidth < 1024) {
+        sidebar.classList.remove('open');
+        sidebarBackdrop.classList.add('hidden');
+      }
+    });
+
+    item.querySelector('.delete-folder-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (confirm('Delete this folder? Notes will NOT be deleted.')) {
+        await deleteFolder(currentUser.uid, item.dataset.id);
+        if (currentFolderId === item.dataset.id) {
+          currentFolderId = 'all';
+          document.querySelector('[data-nav="all"]').classList.add('active');
+          applyFilters();
+        }
+      }
+    });
+  });
+
+  // To modal select
+  const currentVal = noteFolder.value;
+  noteFolder.innerHTML = '<option value="none">No Folder</option>' + 
+    folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+  noteFolder.value = currentVal;
+}
+
+// ─────────────────────────────────────────────
+// Checklist Interactivity
+// ─────────────────────────────────────────────
+notesList.addEventListener('click', async (e) => {
+  if (e.target.classList.contains('checklist-checkbox')) {
+    e.stopPropagation();
+    const card = e.target.closest('.note-card');
+    const noteId = card.querySelector('.card-action-btn.edit').dataset.id;
+    const note = allNotes.find(n => n.id === noteId);
+    
+    // Find the text for this checkbox in the content
+    const index = Array.from(card.querySelectorAll('.checklist-checkbox')).indexOf(e.target);
+    const lines = note.content.split('\n');
+    let checklistCount = 0;
+    
+    const newLines = lines.map(line => {
+      if (line.trim().startsWith('[ ]') || line.trim().startsWith('[x]')) {
+        if (checklistCount === index) {
+          checklistCount++;
+          return e.target.checked ? line.replace('[ ]', '[x]') : line.replace('[x]', '[ ]');
+        }
+        checklistCount++;
+      }
+      return line;
+    });
+
+    try {
+      await updateNote(currentUser.uid, noteId, { ...note, content: newLines.join('\n') });
+    } catch {
+      showToast('Failed to update checklist', 'error');
+      e.target.checked = !e.target.checked; // Revert
+    }
+  }
+});
+
+// ─────────────────────────────────────────────
+// Reminders & Export
+// ─────────────────────────────────────────────
+reminderBtn.addEventListener('click', () => {
+  const time = prompt('Enter reminder time (YYYY-MM-DD HH:MM) or leave blank to clear:', 
+    noteContent.dataset.reminder || '');
+  if (time === null) return;
+  if (time === '') {
+    delete noteContent.dataset.reminder;
+    showToast('Reminder cleared');
+  } else {
+    noteContent.dataset.reminder = time;
+    showToast('Reminder set ✓');
+  }
+});
+
+exportPdfBtn.addEventListener('click', () => {
+  window.print();
+});
+
+function formatReminder(dateStr) {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch { return dateStr; }
+}
+
+function checkReminders(notes) {
+  const now = new Date();
+  notes.forEach(note => {
+    if (note.reminder) {
+      const remDate = new Date(note.reminder);
+      // If reminder is within the next minute and hasn't been notified (we could store notified state)
+      if (remDate > now && remDate - now < 60000) {
+        setTimeout(() => {
+          if (Notification.permission === "granted") {
+            new Notification("NoteBook Reminder", { body: note.title });
+          } else {
+            showToast(`Reminder: ${note.title}`, 'success');
+          }
+        }, remDate - now);
+      }
+    }
+  });
+}
+
+if ("Notification" in window && Notification.permission === "default") {
+  Notification.requestPermission();
+}
+
+// ─────────────────────────────────────────────
+// Grammar Review Helper
+// ─────────────────────────────────────────────
+noteContent.setAttribute('spellcheck', 'true');
+
+function reviewGrammar() {
+  const text = noteContent.value;
+  const patterns = [
+    { regex: /\bits\b(?=\s+\w+ing)/gi, suggestion: "it's" },
+    { regex: /\bit's\b(?=\s+\w+\b\s+(?:own|color|name))/gi, suggestion: "its" },
+    { regex: /\byour\b(?=\s+\w+ing)/gi, suggestion: "you're" },
+    { regex: /\byou're\b(?=\s+\w+\b\s+(?:book|house|idea))/gi, suggestion: "your" },
+  ];
+
+  let found = false;
+  patterns.forEach(p => {
+    if (p.regex.test(text)) {
+      showToast(`Hint: Check "${p.suggestion}" usage`, 'error');
+      found = true;
+    }
+  });
+  if (!found) showToast('No common errors found! ✓');
+}
+
+// Add review button to modal header or body
+const reviewBtn = document.createElement('button');
+reviewBtn.className = 'tool-btn';
+reviewBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+reviewBtn.title = "Review Grammar";
+reviewBtn.addEventListener('click', reviewGrammar);
+micBtn.parentNode.insertBefore(reviewBtn, micBtn);
+
+// ─────────────────────────────────────────────
 // Register Service Worker
 // ─────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
@@ -693,3 +956,4 @@ if ('serviceWorker' in navigator) {
       .catch((err) => console.warn('[App] SW registration failed:', err));
   });
 }
+

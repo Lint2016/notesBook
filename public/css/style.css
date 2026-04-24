@@ -354,6 +354,161 @@ body::before {
   z-index: 1;
 }
 
+/* Sidebar Toggle (Header) */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--clr-border);
+  background: var(--clr-surface);
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  margin-right: 4px;
+}
+
+.sidebar-toggle:hover {
+  background: var(--clr-surface-hover);
+  color: var(--clr-text);
+}
+
+@media (min-width: 1024px) {
+  .sidebar-toggle { display: none; }
+}
+
+/* App Container Layout */
+.app-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Sidebar Styling */
+.sidebar {
+  position: fixed;
+  inset: 60px 0 0 0;
+  width: 280px;
+  background: rgba(15, 15, 26, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--clr-border);
+  z-index: 90;
+  transform: translateX(-100%);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--clr-text-muted);
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: left;
+}
+
+.nav-item:hover {
+  background: var(--clr-surface-hover);
+  color: var(--clr-text);
+}
+
+.nav-item.active {
+  background: rgba(124, 77, 255, 0.15);
+  color: var(--clr-accent-2);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--clr-border);
+  margin: 12px 0;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--clr-text-muted);
+  letter-spacing: 1px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  transition: var(--transition);
+}
+
+.icon-btn:hover {
+  background: var(--clr-surface-hover);
+  color: var(--clr-accent-2);
+}
+
+.folder-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 80;
+  transition: var(--transition);
+}
+
+@media (min-width: 1024px) {
+  .sidebar {
+    position: static;
+    transform: translateX(0);
+    width: 260px;
+    background: transparent;
+    backdrop-filter: none;
+  }
+  .sidebar-backdrop { display: none !important; }
+}
+
+
 /* --- Header --- */
 .app-header {
   position: sticky;
@@ -457,10 +612,12 @@ body::before {
 .dash-body {
   flex: 1;
   padding: 20px 16px 100px;
-  max-width: 680px;
+  max-width: 800px;
   width: 100%;
   margin: 0 auto;
+  overflow-y: auto;
 }
+
 
 /* Stats Bar */
 .stats-bar {
@@ -1266,5 +1423,102 @@ body::before {
   .fab { bottom: 32px; right: 32px; }
 }
 
-/* Remove redundant scrollbar rules since we added refined ones at the top */
+/* --- Checklist Styling --- */
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.checklist-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--clr-border);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.checklist-checkbox:checked {
+  background: var(--clr-accent);
+  border-color: var(--clr-accent);
+}
+
+.checklist-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checklist-text {
+  transition: var(--transition);
+}
+
+.checklist-checkbox:checked + .checklist-text {
+  color: var(--clr-text-muted);
+  text-decoration: line-through;
+}
+
+/* --- Reminder Styles --- */
+.reminder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+/* --- Print Styles (PDF Export) --- */
+@media print {
+  body * { visibility: hidden; }
+  .modal, .modal * { visibility: visible; }
+  .modal {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    border: none;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+  #note-title, #note-content {
+    background: white !important;
+    color: black !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  #note-title { font-size: 24pt !important; margin-bottom: 20pt !important; }
+  #note-content { font-size: 12pt !important; line-height: 1.6 !important; }
+  .modal-header, .modal-footer, .category-select-wrap, .modal-tools { display: none !important; }
+  
+  /* Show only the content for printing individual cards if needed */
+  .print-area { visibility: visible; position: absolute; left: 0; top: 0; width: 100%; color: black; background: white; padding: 40px; }
+  .print-area h1 { font-size: 28pt; margin-bottom: 10pt; border-bottom: 2px solid #eee; padding-bottom: 10pt; }
+  .print-area .meta { font-size: 10pt; color: #666; margin-bottom: 30pt; }
+  .print-area .content { font-size: 13pt; line-height: 1.6; }
+}
+
+/* Grammar Underlining Simulation */
+.grammar-error {
+  text-decoration: underline wavy #ff4d6d;
+  cursor: help;
+}
+
 

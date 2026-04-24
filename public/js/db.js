@@ -36,6 +36,16 @@ function notesRef(uid) {
 }
 
 /**
+ * Returns the Firestore collection reference for a user's folders.
+ * @param {string} uid - Firebase Auth user ID
+ * @returns {CollectionReference}
+ */
+function foldersRef(uid) {
+  return collection(db, 'users', uid, 'folders');
+}
+
+
+/**
  * Add a new note for the authenticated user.
  * @param {string} uid
  * @param {object} noteData - { title, content }
@@ -46,11 +56,14 @@ export async function addNote(uid, noteData) {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
     category: noteData.category || 'General',
+    folderId: noteData.folderId || null,
+    reminder: noteData.reminder || null,
     pinned: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
 }
+
 
 /**
  * Update an existing note.
@@ -65,9 +78,12 @@ export async function updateNote(uid, noteId, noteData) {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
     category: noteData.category || 'General',
+    folderId: noteData.folderId || null,
+    reminder: noteData.reminder || null,
     updatedAt: serverTimestamp()
   });
 }
+
 
 /**
  * Delete a note.
@@ -115,3 +131,42 @@ export function subscribeToNotes(uid, callback) {
     callback(notes);
   });
 }
+
+// ─────────────────────────────────────────────
+// Folder Operations
+// ─────────────────────────────────────────────
+
+/**
+ * Add a new folder.
+ */
+export async function addFolder(uid, name, parentId = null) {
+  return addDoc(foldersRef(uid), {
+    name: name.trim(),
+    parentId,
+    createdAt: serverTimestamp()
+  });
+}
+
+/**
+ * Delete a folder.
+ */
+export async function deleteFolder(uid, folderId) {
+  const ref = doc(db, 'users', uid, 'folders', folderId);
+  return deleteDoc(ref);
+}
+
+/**
+ * Subscribe to folders.
+ */
+export function subscribeToFolders(uid, callback) {
+  const q = query(foldersRef(uid), orderBy('createdAt', 'asc'));
+
+  return onSnapshot(q, (snapshot) => {
+    const folders = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+    callback(folders);
+  });
+}
+
