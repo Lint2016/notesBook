@@ -53,8 +53,11 @@ const navItems        = document.querySelectorAll('.nav-item');
 
 // Modal
 const modalBackdrop  = document.getElementById('modal-backdrop');
+const modalTitle     = document.getElementById('modal-title');
+const noteTitle      = document.getElementById('note-title');
 const noteCategory   = document.getElementById('note-category');
 const noteFolder     = document.getElementById('note-folder');
+
 const reminderBtn    = document.getElementById('reminder-btn');
 const exportPdfBtn   = document.getElementById('export-pdf-btn');
 const micBtn         = document.getElementById('mic-btn');
