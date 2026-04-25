@@ -2,6 +2,8 @@
 
 NoteBook is a high-end, mobile-first Progressive Web App (PWA) designed for secure, offline-first note-taking. It combines modern glassmorphism aesthetics with powerful productivity features.
 
+🔗 **Live App**: [notesbook-3d7fc.web.app](https://notesbook-3d7fc.web.app/)
+
 ![App Status](https://img.shields.io/badge/Status-Production--Ready-success)
 ![Platform](https://img.shields.io/badge/Platform-PWA-blue)
 ![Backend](https://img.shields.io/badge/Backend-Firebase-orange)
