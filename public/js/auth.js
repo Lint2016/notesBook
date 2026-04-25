@@ -13,7 +13,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
   doc,
@@ -57,6 +58,15 @@ export async function signUp(username, email, password) {
  */
 export async function signIn(email, password) {
   return signInWithEmailAndPassword(auth, email, password);
+}
+
+/**
+ * Send a password reset email.
+ * @param {string} email
+ * @returns {Promise<void>}
+ */
+export async function resetPassword(email) {
+  return sendPasswordResetEmail(auth, email);
 }
 
 /**

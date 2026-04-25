@@ -91,6 +91,9 @@
                 </svg>
               </button>
             </div>
+            <div class="form-help">
+              <button type="button" id="link-forgot-password" class="auth-link">Forgot Password?</button>
+            </div>
           </div>
           <p id="login-error" class="auth-error hidden" role="alert" aria-live="polite"></p>
           <button type="submit" class="btn-primary" id="login-submit-btn">Sign In</button>
@@ -137,6 +140,29 @@
           </div>
           <p id="signup-error" class="auth-error hidden" role="alert" aria-live="polite"></p>
           <button type="submit" class="btn-primary" id="signup-submit-btn">Create Account</button>
+        </form>
+
+        <!-- ─── Forgot Password Form ─── -->
+        <form id="forgot-form" class="auth-form hidden" novalidate aria-label="Reset password form">
+          <div class="auth-form-header">
+            <h3>Reset Password</h3>
+            <p>Enter your email and we'll send you a link to reset your password.</p>
+          </div>
+          <div class="form-group">
+            <label for="forgot-email">Email</label>
+            <input
+              id="forgot-email"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required />
+          </div>
+          <p id="forgot-error" class="auth-error hidden" role="alert" aria-live="polite"></p>
+          <p id="forgot-success" class="auth-success hidden" role="alert" aria-live="polite"></p>
+          <button type="submit" class="btn-primary" id="forgot-submit-btn">Send Reset Link</button>
+          <div class="form-footer">
+            <button type="button" id="link-back-to-login" class="auth-link">Back to Sign In</button>
+          </div>
         </form>
 
       </div><!-- /.auth-card -->

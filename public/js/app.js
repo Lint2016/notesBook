@@ -9,7 +9,7 @@
  * - Handles search/filter, toast notifications, and confirm dialog
  */
 
-import { signUp, signIn, logOut, onAuthChange } from './auth.js';
+import { signUp, signIn, logOut, onAuthChange, resetPassword } from './auth.js';
 import { 
   addNote, updateNote, deleteNote, subscribeToNotes, togglePin,
   addFolder, deleteFolder, subscribeToFolders 
@@ -31,6 +31,12 @@ const loginForm    = document.getElementById('login-form');
 const signupForm   = document.getElementById('signup-form');
 const loginError   = document.getElementById('login-error');
 const signupError  = document.getElementById('signup-error');
+const forgotForm   = document.getElementById('forgot-form');
+const forgotError  = document.getElementById('forgot-error');
+const forgotSuccess = document.getElementById('forgot-success');
+
+const linkForgotPassword = document.getElementById('link-forgot-password');
+const linkBackToLogin    = document.getElementById('link-back-to-login');
 
 // Dashboard
 const dynamicGreeting = document.getElementById('dynamic-greeting');
@@ -367,12 +373,25 @@ function showAuth() {
   // Reset auth buttons state
   const loginSubmitBtn  = document.getElementById('login-submit-btn');
   const signupSubmitBtn = document.getElementById('signup-submit-btn');
+  const forgotSubmitBtn = document.getElementById('forgot-submit-btn');
   if (loginSubmitBtn) {
     setLoading(loginSubmitBtn, false, 'Sign In');
   }
   if (signupSubmitBtn) {
     setLoading(signupSubmitBtn, false, 'Create Account');
   }
+  if (forgotSubmitBtn) {
+    setLoading(forgotSubmitBtn, false, 'Send Reset Link');
+  }
+
+  // Clear errors/success
+  loginError.classList.add('hidden');
+  signupError.classList.add('hidden');
+  forgotError.classList.add('hidden');
+  forgotSuccess.classList.add('hidden');
+
+  // Ensure login form is shown by default
+  switchTab('login');
 
   // Stop Firestore listeners
   if (unsubscribeNotes) {
@@ -396,14 +415,66 @@ tabLogin.addEventListener('click', () => switchTab('login'));
 tabSignup.addEventListener('click', () => switchTab('signup'));
 
 function switchTab(tab) {
-  const isLogin = tab === 'login';
+  const isLogin  = tab === 'login';
+  const isSignup = tab === 'signup';
+  const isForgot = tab === 'forgot';
+
   tabLogin.classList.toggle('active', isLogin);
-  tabSignup.classList.toggle('active', !isLogin);
+  tabSignup.classList.toggle('active', isSignup);
+  
   loginForm.classList.toggle('hidden', !isLogin);
-  signupForm.classList.toggle('hidden', isLogin);
+  signupForm.classList.toggle('hidden', !isSignup);
+  forgotForm.classList.toggle('hidden', !isForgot);
+
   loginError.classList.add('hidden');
   signupError.classList.add('hidden');
+  forgotError.classList.add('hidden');
+  forgotSuccess.classList.add('hidden');
+
+  // If going to forgot, hide tabs
+  document.querySelector('.auth-tabs').classList.toggle('hidden', isForgot);
 }
+
+// ─────────────────────────────────────────────
+// Forgot Password Flow
+// ─────────────────────────────────────────────
+linkForgotPassword.addEventListener('click', () => switchTab('forgot'));
+linkBackToLogin.addEventListener('click', () => switchTab('login'));
+
+forgotForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  forgotError.classList.add('hidden');
+  forgotSuccess.classList.add('hidden');
+
+  const email = document.getElementById('forgot-email').value.trim();
+  const submitBtn = document.getElementById('forgot-submit-btn');
+
+  if (!email) {
+    showFormError(forgotError, 'Please enter your email.');
+    return;
+  }
+
+  setLoading(submitBtn, true, 'Sending…');
+  try {
+    await resetPassword(email);
+    forgotSuccess.textContent = 'Reset link sent! Check your email.';
+    forgotSuccess.classList.remove('hidden');
+    setLoading(submitBtn, false, 'Send Reset Link');
+    
+    // Optionally clear email
+    document.getElementById('forgot-email').value = '';
+    
+    // Auto-switch back after a delay
+    setTimeout(() => {
+      if (!forgotForm.classList.contains('hidden')) {
+        switchTab('login');
+      }
+    }, 4000);
+  } catch (err) {
+    showFormError(forgotError, friendlyAuthError(err.code));
+    setLoading(submitBtn, false, 'Send Reset Link');
+  }
+});
 
 // ─────────────────────────────────────────────
 // Sign Up

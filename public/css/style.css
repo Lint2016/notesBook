@@ -219,6 +219,23 @@ body::before {
   gap: 16px;
 }
 
+.auth-form-header {
+  margin-bottom: 8px;
+}
+
+.auth-form-header h3 {
+  font-family: var(--font-brand);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.auth-form-header p {
+  font-size: 0.85rem;
+  color: var(--clr-text-muted);
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -253,6 +270,36 @@ body::before {
   border-color: var(--clr-accent);
   background: rgba(124, 77, 255, 0.08);
   box-shadow: 0 0 0 3px var(--clr-accent-glow);
+}
+
+.form-help {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.auth-link {
+  background: transparent;
+  border: none;
+  color: var(--clr-accent-2);
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.auth-link:hover {
+  color: #fff;
+  background: var(--clr-surface-hover);
+}
+
+.form-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
 }
 
 /* Password Toggle */
@@ -338,6 +385,18 @@ body::before {
   background: rgba(255, 77, 109, 0.12);
   border: 1px solid rgba(255, 77, 109, 0.3);
   color: #ff8fa3;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: -4px;
+}
+
+/* Auth Success */
+.auth-success {
+  padding: 10px 14px;
+  border-radius: var(--radius-xs);
+  background: rgba(76, 175, 136, 0.12);
+  border: 1px solid rgba(76, 175, 136, 0.3);
+  color: #8cd6b9;
   font-size: 0.85rem;
   text-align: center;
   margin-top: -4px;
