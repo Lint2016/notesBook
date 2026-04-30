@@ -34,7 +34,93 @@ NoteBook is a high-end, mobile-first Progressive Web App (PWA) designed for secu
 
 ---
 
-## 🏗️ Architecture
+## 📊 Application Workflows
+
+### 1. User Journey
+*How users interact with the core features of NoteBook.*
+```mermaid
+graph TD
+    A["User Visits PWA"] --> B{"Authenticated?"}
+    B -- "No" --> C["Login / Sign Up"]
+    C --> D["Dashboard"]
+    B -- "Yes" --> D["Dashboard"]
+    
+    D --> E["Command Palette (Ctrl+K)"]
+    D --> F["Smart Folders"]
+    D --> G["Create Note"]
+    
+    G --> H["Markdown Input"]
+    G --> I["Voice-to-Text Input"]
+    
+    H --> J{"Note Actions"}
+    I --> J
+    
+    J --> K["Pin Note"]
+    J --> L["Set Reminder"]
+    J --> M["Export to PDF"]
+    J --> N["Save Note"]
+```
+
+### 2. Offline-First Synchronization
+*How the Service Worker handles offline data creation and background syncing.*
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant P as PWA (Client)
+    participant SW as Service Worker
+    participant IDB as IndexedDB (Local)
+    participant FS as Firestore (Cloud)
+
+    U->>P: Create/Edit Note
+    P->>SW: Save Request
+    alt is Online
+        SW->>FS: Save Data to Cloud
+        FS-->>P: Success (Synced)
+    else is Offline
+        SW->>IDB: Save Data Locally
+        IDB-->>P: Success (Saved Locally)
+        Note over P,SW: Offline Mode Indicator Active
+    end
+    
+    opt Network Restored
+        SW->>IDB: Fetch Local Changes
+        SW->>FS: Background Sync to Cloud
+        FS-->>P: Success (Synced)
+    end
+```
+
+---
+
+## 🏗️ System Architecture
+
+### 3. Component Architecture
+*High-level overview of the technology stack and deployment pipeline.*
+```mermaid
+flowchart LR
+    subgraph Client["Frontend - PWA"]
+        UI["Vanilla JS & CSS3"]
+        SW["Service Worker"]
+        IDB[("IndexedDB")]
+    end
+
+    subgraph Firebase["Backend Services"]
+        Auth["Firebase Auth"]
+        FS[("Cloud Firestore")]
+        Host["Firebase Hosting"]
+    end
+
+    subgraph CI_CD["Deployment"]
+        GH["GitHub Actions"]
+    end
+
+    UI <--> Auth
+    UI <--> SW
+    SW <--> IDB
+    SW <--> FS
+    
+    GH -->|"Auto Deploys"| Host
+    Host -->|"Serves App"| UI
+```
 
 ### Tech Stack
 - **Frontend**: Vanilla JavaScript (ES Modules), HTML5, CSS3 (Custom Variables).
