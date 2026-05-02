@@ -9,7 +9,7 @@
  * - Handles search/filter, toast notifications, and confirm dialog
  */
 
-import { signUp, signIn, logOut, onAuthChange, resetPassword, signInWithGoogle, deleteAccount } from './auth.js';
+import { signUp, signIn, logOut, onAuthChange, resetPassword, signInWithGoogle, deleteAccount, linkEmailPassword } from './auth.js';
 import { 
   addNote, updateNote, deleteNote, subscribeToNotes, togglePin,
   addFolder, deleteFolder, subscribeToFolders 
@@ -365,6 +365,12 @@ function showApp(user) {
     allFolders = folders;
     renderFolders(folders);
   });
+
+  // Prompt new Google users to set a password
+  if (sessionStorage.getItem('google-new-user')) {
+    sessionStorage.removeItem('google-new-user');
+    setTimeout(() => showSetPasswordPrompt(user), 1400);
+  }
 }
 
 function showAuth() {
@@ -406,6 +412,24 @@ function showAuth() {
 
   allNotes = [];
   allFolders = [];
+
+  // Show deletion success banner if account was just deleted
+  if (sessionStorage.getItem('account-deleted')) {
+    sessionStorage.removeItem('account-deleted');
+    const container = authSection.querySelector('.auth-container');
+    const card      = authSection.querySelector('.auth-card');
+    const existing  = container.querySelector('.account-deleted-banner');
+    if (existing) existing.remove();
+    const banner = document.createElement('div');
+    banner.className = 'account-deleted-banner';
+    banner.innerHTML = `
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>Your account has been permanently deleted. You can create a new one below.</span>
+    `;
+    container.insertBefore(banner, card);
+    setTimeout(() => banner.classList.add('visible'), 50);
+    setTimeout(() => { banner.style.opacity='0'; setTimeout(()=>banner.remove(),400); }, 7000);
+  }
 }
 
 
@@ -536,7 +560,8 @@ loginForm.addEventListener('submit', async (e) => {
       btn.disabled = true;
       btn.classList.add('btn-google--loading');
       try {
-        await signInWithGoogle();
+        const { isNewUser } = await signInWithGoogle();
+        if (isNewUser) sessionStorage.setItem('google-new-user', '1');
         // onAuthChange handles navigation — nothing else needed
       } catch (err) {
         // Silently ignore popup cancelled by the user
@@ -671,6 +696,7 @@ function openDeleteAccountModal() {
     errorEl.classList.add('hidden');
 
     try {
+      sessionStorage.setItem('account-deleted', '1');
       await deleteAccount(currentUser, password);
       overlay.remove();
       showToast('Account deleted. Goodbye! 👋', 'success');
@@ -699,6 +725,103 @@ function openDeleteAccountModal() {
 }
 
 deleteAccountBtn.addEventListener('click', openDeleteAccountModal);
+
+// ─────────────────────────────────────────────
+// Set Password Prompt (new Google users)
+// ─────────────────────────────────────────────
+function showSetPasswordPrompt(user) {
+  const overlay = document.createElement('div');
+  overlay.className = 'set-password-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+
+  overlay.innerHTML = `
+    <div class="set-password-box">
+      <div class="sp-header">
+        <div class="sp-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div>
+          <h4>Set a Password</h4>
+          <p class="sp-subtitle">Optionally create a password so you can also sign in with your email.</p>
+        </div>
+      </div>
+
+      <p class="sp-email-note">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Password will be linked to <strong>${escapeHtml(user.email)}</strong>
+      </p>
+
+      <div class="sp-field-group">
+        <label for="sp-password">New Password</label>
+        <input id="sp-password" type="password" placeholder="At least 6 characters" autocomplete="new-password" />
+      </div>
+      <div class="sp-field-group">
+        <label for="sp-confirm">Confirm Password</label>
+        <input id="sp-confirm" type="password" placeholder="Repeat your password" autocomplete="new-password" />
+      </div>
+
+      <p id="sp-error" class="sp-error hidden"></p>
+
+      <div class="sp-actions">
+        <button id="sp-skip-btn" class="btn-cancel">Skip for now</button>
+        <button id="sp-save-btn" class="btn-primary sp-save-btn">Set Password</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const pwInput    = overlay.querySelector('#sp-password');
+  const confInput  = overlay.querySelector('#sp-confirm');
+  const saveBtn    = overlay.querySelector('#sp-save-btn');
+  const skipBtn    = overlay.querySelector('#sp-skip-btn');
+  const errorEl    = overlay.querySelector('#sp-error');
+
+  skipBtn.addEventListener('click', () => overlay.remove());
+
+  saveBtn.addEventListener('click', async () => {
+    const pw   = pwInput.value;
+    const conf = confInput.value;
+    errorEl.classList.add('hidden');
+
+    if (pw.length < 6) {
+      errorEl.textContent = 'Password must be at least 6 characters.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    if (pw !== conf) {
+      errorEl.textContent = 'Passwords do not match.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving\u2026';
+
+    try {
+      await linkEmailPassword(currentUser, pw);
+      overlay.remove();
+      showToast('Password set! You can now sign in with email too \u2713', 'success');
+    } catch (err) {
+      const msgs = {
+        'auth/weak-password'              : 'Password must be at least 6 characters.',
+        'auth/provider-already-linked'    : 'A password is already linked to this account.',
+        'auth/email-already-in-use'       : 'This email is already in use by another account.',
+        'auth/requires-recent-login'      : 'Session expired. Please log out and sign in with Google again.',
+      };
+      errorEl.textContent = msgs[err.code] || 'Something went wrong. Please try again.';
+      errorEl.classList.remove('hidden');
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Set Password';
+    }
+  });
+
+  setTimeout(() => pwInput.focus(), 100);
+}
 
 // ─────────────────────────────────────────────
 // Note Rendering

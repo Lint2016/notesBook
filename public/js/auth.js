@@ -19,6 +19,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   deleteUser,
+  linkWithCredential,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   EmailAuthProvider
@@ -96,16 +97,16 @@ export async function logOut() {
  */
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
-  // Hint the account picker to always show (even if 1 account is cached)
   provider.setCustomParameters({ prompt: 'select_account' });
 
   const credential = await signInWithPopup(auth, provider);
   const user = credential.user;
 
-  // Only write a Firestore profile on the very first Google sign-in
   const userRef = doc(db, 'users', user.uid);
   const snap = await getDoc(userRef);
-  if (!snap.exists()) {
+  const isNewUser = !snap.exists();
+
+  if (isNewUser) {
     await setDoc(userRef, {
       username: user.displayName || user.email.split('@')[0],
       email: user.email,
@@ -114,7 +115,18 @@ export async function signInWithGoogle() {
     });
   }
 
-  return credential;
+  return { credential, isNewUser };
+}
+
+/**
+ * Link email/password to an existing Google account.
+ * Allows the user to sign in with email + password in addition to Google.
+ * @param {User} user
+ * @param {string} password
+ */
+export async function linkEmailPassword(user, password) {
+  const cred = EmailAuthProvider.credential(user.email, password);
+  return linkWithCredential(user, cred);
 }
 
 /**

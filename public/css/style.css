@@ -470,6 +470,167 @@ body::before {
   white-space: nowrap;
 }
 
+/* Account Deleted Success Banner */
+.account-deleted-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(76, 175, 136, 0.12);
+  border: 1px solid rgba(76, 175, 136, 0.35);
+  border-radius: var(--radius-sm);
+  color: #8cd6b9;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.account-deleted-banner.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.account-deleted-banner svg {
+  flex-shrink: 0;
+  color: var(--clr-success);
+}
+
+/* ── Set Password Modal (new Google users) ─────────────────── */
+.set-password-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease both;
+}
+
+.set-password-box {
+  width: 100%;
+  max-width: 400px;
+  background: var(--clr-bg-2);
+  border: 1px solid rgba(124, 77, 255, 0.35);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  box-shadow: 0 12px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,77,255,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.sp-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.sp-icon-wrap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(124, 77, 255, 0.12);
+  border: 1px solid rgba(124, 77, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clr-accent-2);
+}
+
+.sp-header h4 {
+  font-family: var(--font-brand);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.sp-subtitle {
+  font-size: 0.82rem;
+  color: var(--clr-text-muted);
+  line-height: 1.5;
+}
+
+.sp-email-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  color: var(--clr-text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+
+.sp-email-note strong { color: var(--clr-text-dark); }
+
+.sp-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sp-field-group label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sp-field-group input {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  color: var(--clr-text);
+  font-family: var(--font-main);
+  font-size: 0.92rem;
+  outline: none;
+  transition: var(--transition);
+  -webkit-appearance: none;
+}
+
+.sp-field-group input::placeholder { color: var(--clr-text-muted); }
+
+.sp-field-group input:focus {
+  border-color: var(--clr-accent);
+  box-shadow: 0 0 0 3px var(--clr-accent-glow);
+}
+
+.sp-error {
+  padding: 9px 12px;
+  border-radius: var(--radius-xs);
+  background: rgba(255,77,109,0.10);
+  border: 1px solid rgba(255,77,109,0.3);
+  color: #ff8fa3;
+  font-size: 0.83rem;
+  margin-top: -6px;
+}
+
+.sp-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Override btn-primary full-width inside this modal */
+.set-password-box .btn-primary {
+  width: auto;
+  margin-top: 0;
+}
+
 /* ============================================================
    DASHBOARD / APP SECTION
    ============================================================ */
