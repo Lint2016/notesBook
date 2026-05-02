@@ -366,10 +366,17 @@ function showApp(user) {
     renderFolders(folders);
   });
 
-  // Prompt new Google users to set a password
-  if (sessionStorage.getItem('google-new-user')) {
-    sessionStorage.removeItem('google-new-user');
-    setTimeout(() => showSetPasswordPrompt(user), 1400);
+  // Prompt new Google-only users to set a password.
+  // We detect them by: Google is the ONLY provider AND account was
+  // created within the last 60 seconds (creation time ≈ last sign-in).
+  // This runs inside onAuthChange so there is no sessionStorage race condition.
+  const isGoogleOnly = user.providerData?.every(p => p.providerId === 'google.com');
+  if (isGoogleOnly) {
+    const created   = new Date(user.metadata.creationTime).getTime();
+    const signedIn  = new Date(user.metadata.lastSignInTime).getTime();
+    if (Math.abs(signedIn - created) < 60000) {
+      setTimeout(() => showSetPasswordPrompt(user), 1400);
+    }
   }
 }
 
@@ -560,8 +567,7 @@ loginForm.addEventListener('submit', async (e) => {
       btn.disabled = true;
       btn.classList.add('btn-google--loading');
       try {
-        const { isNewUser } = await signInWithGoogle();
-        if (isNewUser) sessionStorage.setItem('google-new-user', '1');
+        await signInWithGoogle();
         // onAuthChange handles navigation — nothing else needed
       } catch (err) {
         // Silently ignore popup cancelled by the user
