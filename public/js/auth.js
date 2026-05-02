@@ -3,6 +3,7 @@
  * Handles Firebase Authentication:
  * - Email/Password Sign-Up (with username stored to Firestore)
  * - Email/Password Sign-In
+ * - Google OAuth Sign-In / Sign-Up
  * - Sign-Out
  * - onAuthStateChanged listener
  */
@@ -14,11 +15,14 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
   doc,
   setDoc,
+  getDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -75,6 +79,35 @@ export async function resetPassword(email) {
  */
 export async function logOut() {
   return signOut(auth);
+}
+
+/**
+ * Sign in (or sign up) using Google OAuth via a popup.
+ * - On first login: creates a Firestore user profile automatically.
+ * - On subsequent logins: leaves the existing profile untouched.
+ * @returns {Promise<UserCredential>}
+ */
+export async function signInWithGoogle() {
+  const provider = new GoogleAuthProvider();
+  // Hint the account picker to always show (even if 1 account is cached)
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  const credential = await signInWithPopup(auth, provider);
+  const user = credential.user;
+
+  // Only write a Firestore profile on the very first Google sign-in
+  const userRef = doc(db, 'users', user.uid);
+  const snap = await getDoc(userRef);
+  if (!snap.exists()) {
+    await setDoc(userRef, {
+      username: user.displayName || user.email.split('@')[0],
+      email: user.email,
+      createdAt: serverTimestamp(),
+      provider: 'google'
+    });
+  }
+
+  return credential;
 }
 
 /**

@@ -9,7 +9,7 @@
  * - Handles search/filter, toast notifications, and confirm dialog
  */
 
-import { signUp, signIn, logOut, onAuthChange, resetPassword } from './auth.js';
+import { signUp, signIn, logOut, onAuthChange, resetPassword, signInWithGoogle } from './auth.js';
 import { 
   addNote, updateNote, deleteNote, subscribeToNotes, togglePin,
   addFolder, deleteFolder, subscribeToFolders 
@@ -522,6 +522,34 @@ loginForm.addEventListener('submit', async (e) => {
     setLoading(submitBtn, false, 'Sign In');
   }
 });
+
+// ─────────────────────────────────────────────
+// Google Sign-In (both Login + Signup forms)
+// ─────────────────────────────────────────────
+[document.getElementById('google-login-btn'), document.getElementById('google-signup-btn')]
+  .forEach(btn => {
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.classList.add('btn-google--loading');
+      try {
+        await signInWithGoogle();
+        // onAuthChange handles navigation — nothing else needed
+      } catch (err) {
+        // Silently ignore popup cancelled by the user
+        if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+          const errorEl = btn.closest('form')?.querySelector('.auth-error');
+          if (errorEl) {
+            errorEl.textContent = friendlyAuthError(err.code);
+            errorEl.classList.remove('hidden');
+          }
+        }
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('btn-google--loading');
+      }
+    });
+  });
 
 // ─────────────────────────────────────────────
 // Logout
