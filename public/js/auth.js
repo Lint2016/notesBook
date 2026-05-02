@@ -17,12 +17,19 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  deleteUser,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
+  EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
+  collection,
+  writeBatch,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -108,6 +115,52 @@ export async function signInWithGoogle() {
   }
 
   return credential;
+}
+
+/**
+ * Delete the user's account — full GDPR-compliant wipe.
+ *
+ * Order of operations (critical):
+ *   1. Re-authenticate (Firebase requirement for sensitive operations)
+ *   2. Batch-delete all notes + folders subcollections
+ *   3. Delete the /users/{uid} profile document
+ *   4. Delete the Firebase Auth account
+ *
+ * Deleting data BEFORE the auth account is essential — once the auth
+ * account is gone, Firestore Security Rules deny all further writes.
+ *
+ * @param {User}   user     - The currently signed-in Firebase user object
+ * @param {string} password - Required only for email/password users; null for Google users
+ * @returns {Promise<void>}
+ */
+export async function deleteAccount(user, password = null) {
+  // ── Step 1: Re-authenticate ──────────────────────────────────────
+  const isGoogle = user.providerData.some(p => p.providerId === 'google.com');
+
+  if (isGoogle) {
+    const provider = new GoogleAuthProvider();
+    await reauthenticateWithPopup(user, provider);
+  } else {
+    if (!password) throw new Error('Password is required for email accounts.');
+    const credential = EmailAuthProvider.credential(user.email, password);
+    await reauthenticateWithCredential(user, credential);
+  }
+
+  // ── Step 2: Batch-delete all user data ──────────────────────────
+  const uid = user.uid;
+  const [notesSnap, foldersSnap] = await Promise.all([
+    getDocs(collection(db, 'users', uid, 'notes')),
+    getDocs(collection(db, 'users', uid, 'folders'))
+  ]);
+
+  const batch = writeBatch(db);
+  notesSnap.forEach(d   => batch.delete(d.ref));
+  foldersSnap.forEach(d => batch.delete(d.ref));
+  batch.delete(doc(db, 'users', uid));   // Profile document
+  await batch.commit();
+
+  // ── Step 3: Delete the Firebase Auth account ─────────────────────
+  await deleteUser(user);
 }
 
 /**

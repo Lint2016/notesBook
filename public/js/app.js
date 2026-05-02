@@ -9,7 +9,7 @@
  * - Handles search/filter, toast notifications, and confirm dialog
  */
 
-import { signUp, signIn, logOut, onAuthChange, resetPassword, signInWithGoogle } from './auth.js';
+import { signUp, signIn, logOut, onAuthChange, resetPassword, signInWithGoogle, deleteAccount } from './auth.js';
 import { 
   addNote, updateNote, deleteNote, subscribeToNotes, togglePin,
   addFolder, deleteFolder, subscribeToFolders 
@@ -46,6 +46,7 @@ const notesCountBadge = document.getElementById('notes-count');
 const searchInput     = document.getElementById('search-input');
 const fabBtn          = document.getElementById('fab-btn');
 const logoutBtn       = document.getElementById('logout-btn');
+const deleteAccountBtn = document.getElementById('delete-account-btn');
 const installBtn      = document.getElementById('install-btn');
 const paletteToggleBtn = document.getElementById('palette-toggle-btn');
 const headerHelpBtn   = document.getElementById('header-help-btn');
@@ -512,12 +513,14 @@ loginForm.addEventListener('submit', async (e) => {
 
   const email     = document.getElementById('login-email').value.trim();
   const password  = document.getElementById('login-password').value;
-  const submitBtn = loginForm.querySelector('.btn-primary');
+  const submitBtn = document.getElementById('login-submit-btn');
 
   setLoading(submitBtn, true, 'Signing in…');
   try {
     await signIn(email, password);
   } catch (err) {
+    // Log the raw code so we can diagnose in DevTools
+    console.warn('[Auth] Sign-in failed. Firebase error code:', err.code, err.message);
     showFormError(loginError, friendlyAuthError(err.code));
     setLoading(submitBtn, false, 'Sign In');
   }
@@ -561,6 +564,141 @@ logoutBtn.addEventListener('click', async () => {
     showToast('Failed to log out. Try again.', 'error');
   }
 });
+
+// ─────────────────────────────────────────────
+// Delete Account Modal
+// ─────────────────────────────────────────────
+function openDeleteAccountModal() {
+  const isGoogle = currentUser?.providerData?.some(p => p.providerId === 'google.com');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'delete-account-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'da-title');
+
+  overlay.innerHTML = `
+    <div class="delete-account-box">
+      <div class="da-header">
+        <div class="da-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </div>
+        <div>
+          <h4 id="da-title">Delete My Account</h4>
+          <p class="da-subtitle">This is permanent and cannot be undone.</p>
+        </div>
+      </div>
+
+      <div class="da-warning">
+        <p>The following will be <strong>permanently deleted</strong>:</p>
+        <ul>
+          <li>All your notes</li>
+          <li>All your folders</li>
+          <li>Your account profile</li>
+          <li>Your login credentials</li>
+        </ul>
+      </div>
+
+      ${!isGoogle ? `
+      <div class="da-field-group">
+        <label for="da-password">Confirm your password</label>
+        <input
+          id="da-password"
+          type="password"
+          placeholder="Enter your current password"
+          autocomplete="current-password" />
+      </div>` : `
+      <p class="da-google-note">You will be asked to sign in with Google again to confirm your identity.</p>
+      `}
+
+      <div class="da-field-group">
+        <label for="da-confirm-input">Type <strong>DELETE</strong> to confirm</label>
+        <input
+          id="da-confirm-input"
+          type="text"
+          placeholder="DELETE"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false" />
+      </div>
+
+      <p id="da-error" class="da-error hidden"></p>
+
+      <div class="da-actions">
+        <button id="da-cancel-btn" class="btn-cancel">Cancel</button>
+        <button id="da-confirm-btn" class="btn-danger-confirm" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+          </svg>
+          Delete My Account
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const confirmInput = overlay.querySelector('#da-confirm-input');
+  const confirmBtn   = overlay.querySelector('#da-confirm-btn');
+  const cancelBtn    = overlay.querySelector('#da-cancel-btn');
+  const errorEl      = overlay.querySelector('#da-error');
+  const passwordInput = overlay.querySelector('#da-password');
+
+  // Enable confirm button only when DELETE is typed correctly
+  confirmInput.addEventListener('input', () => {
+    confirmBtn.disabled = confirmInput.value !== 'DELETE';
+  });
+
+  cancelBtn.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  confirmBtn.addEventListener('click', async () => {
+    if (confirmInput.value !== 'DELETE') return;
+
+    const password = passwordInput ? passwordInput.value : null;
+    if (!isGoogle && !password) {
+      errorEl.textContent = 'Please enter your password.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    // Loading state
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Deleting…';
+    errorEl.classList.add('hidden');
+
+    try {
+      await deleteAccount(currentUser, password);
+      overlay.remove();
+      showToast('Account deleted. Goodbye! 👋', 'success');
+      // onAuthChange fires automatically — returns to auth screen
+    } catch (err) {
+      const messages = {
+        'auth/wrong-password'         : 'Incorrect password. Please try again.',
+        'auth/too-many-requests'      : 'Too many attempts. Please wait and try again.',
+        'auth/network-request-failed' : 'Network error. Check your connection.',
+        'auth/popup-closed-by-user'   : 'Google sign-in was cancelled. Please try again.',
+        'auth/requires-recent-login'  : 'Session expired. Please log out and log back in first.',
+      };
+      errorEl.textContent = messages[err.code] || 'Something went wrong. Please try again.';
+      errorEl.classList.remove('hidden');
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+        </svg>
+        Delete My Account`;
+    }
+  });
+
+  // Focus the first input for accessibility
+  setTimeout(() => (passwordInput || confirmInput).focus(), 100);
+}
+
+deleteAccountBtn.addEventListener('click', openDeleteAccountModal);
 
 // ─────────────────────────────────────────────
 // Note Rendering
@@ -1088,13 +1226,16 @@ function friendlyAuthError(code) {
     'auth/email-already-in-use'      : 'This email is already registered.',
     'auth/invalid-email'             : 'Please enter a valid email address.',
     'auth/weak-password'             : 'Password must be at least 6 characters.',
-    'auth/user-not-found'            : 'No account found with this email.',
-    'auth/wrong-password'            : 'Incorrect password. Please try again.',
+    'auth/user-not-found'            : 'No account found with this email. Please sign up first.',
+    'auth/wrong-password'            : 'Incorrect password. Use “Forgot Password” to reset it.',
     'auth/too-many-requests'         : 'Too many attempts. Please try again later.',
-    'auth/invalid-credential'        : 'Invalid email or password.',
+    'auth/invalid-credential'        : 'Incorrect email or password. If you signed up with Google, use the “Continue with Google” button instead.',
     'auth/network-request-failed'    : 'Network error. Check your connection.',
+    'auth/user-disabled'             : 'This account has been disabled. Contact support.',
+    'auth/operation-not-allowed'     : 'Email/password login is not enabled. Please use Google sign-in.',
+    'auth/account-exists-with-different-credential' : 'An account with this email already exists. Try signing in with Google instead.',
   };
-  return map[code] || 'An unexpected error occurred. Please try again.';
+  return map[code] || `An unexpected error occurred. (${code})`;
 }
 
 // ─────────────────────────────────────────────
