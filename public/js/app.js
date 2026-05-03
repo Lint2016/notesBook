@@ -97,6 +97,15 @@ const gotItBtn        = document.getElementById('got-it-btn');
 // Toast Container
 const toastContainer = document.getElementById('toast-container');
 
+// Support Modal
+const supportModal      = document.getElementById('support-modal-backdrop');
+const showSupportBtn    = document.getElementById('show-support-btn');
+const closeSupportBtn   = document.getElementById('close-support-btn');
+const cancelSupportBtn  = document.getElementById('cancel-support-btn');
+const supportForm       = document.getElementById('support-form');
+const submitSupportBtn  = document.getElementById('submit-support-btn');
+const supportError      = document.getElementById('support-error');
+
 // ─────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────
@@ -337,6 +346,81 @@ paletteOverlay.addEventListener('click', (e) => {
 
 paletteToggleBtn.addEventListener('click', () => togglePalette());
 headerHelpBtn.addEventListener('click', () => toggleGuide(true));
+
+// ─────────────────────────────────────────────
+// Support & Feedback Logic
+// ─────────────────────────────────────────────
+function toggleSupportModal(show = true) {
+  supportModal.classList.toggle('hidden', !show);
+  if (show) {
+    supportForm.reset();
+    supportError.classList.add('hidden');
+    // Pre-fill name if user is logged in
+    if (currentUser) {
+      const nameInput = document.getElementById('support-name');
+      if (nameInput) nameInput.value = currentUser.displayName || '';
+    }
+    setTimeout(() => document.getElementById('support-name').focus(), 100);
+  }
+}
+
+showSupportBtn.addEventListener('click', () => {
+  if (window.innerWidth < 1024) sidebarToggle.click(); // Close sidebar on mobile
+  toggleSupportModal(true);
+});
+
+closeSupportBtn.addEventListener('click', () => toggleSupportModal(false));
+cancelSupportBtn.addEventListener('click', () => toggleSupportModal(false));
+
+supportModal.addEventListener('click', (e) => {
+  if (e.target === supportModal) toggleSupportModal(false);
+});
+
+supportForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  supportError.classList.add('hidden');
+
+  const formData = new FormData(supportForm);
+  const data = Object.fromEntries(formData.entries());
+
+  // Validation
+  if (!data.name || !data.subject || !data.message) {
+    supportError.textContent = 'Please fill in all fields.';
+    supportError.classList.remove('hidden');
+    return;
+  }
+
+  // Loading state
+  const btnSpan = submitSupportBtn.querySelector('span');
+  submitSupportBtn.classList.add('loading');
+  submitSupportBtn.disabled = true;
+
+  try {
+    const response = await fetch('https://formspree.io/f/mgodaenb', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      showToast('Message sent successfully! We will get back to you soon.', 'success');
+      toggleSupportModal(false);
+    } else {
+      const result = await response.json();
+      throw new Error(result.errors?.[0]?.message || 'Failed to send message.');
+    }
+  } catch (err) {
+    console.error('[Support] Submission error:', err);
+    supportError.textContent = err.message || 'Something went wrong. Please try again later.';
+    supportError.classList.remove('hidden');
+  } finally {
+    submitSupportBtn.classList.remove('loading');
+    submitSupportBtn.disabled = false;
+  }
+});
 
 // ─────────────────────────────────────────────
 // View Switching
