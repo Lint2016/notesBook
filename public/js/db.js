@@ -48,7 +48,7 @@ function foldersRef(uid) {
 /**
  * Add a new note for the authenticated user.
  * @param {string} uid
- * @param {object} noteData - { title, content }
+ * @param {object} noteData - { title, content, attachments }
  * @returns {Promise<DocumentReference>}
  */
 export async function addNote(uid, noteData) {
@@ -58,6 +58,7 @@ export async function addNote(uid, noteData) {
     category: noteData.category || 'General',
     folderId: noteData.folderId || null,
     reminder: noteData.reminder || null,
+    attachments: noteData.attachments || [], // Array of { url, name, size, type }
     pinned: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -69,18 +70,56 @@ export async function addNote(uid, noteData) {
  * Update an existing note.
  * @param {string} uid
  * @param {string} noteId
- * @param {object} noteData - { title, content }
+ * @param {object} noteData - { title, content, attachments }
+ * @param {boolean} skipVersion - If true, don't save a version snapshot
  * @returns {Promise<void>}
  */
-export async function updateNote(uid, noteId, noteData) {
+export async function updateNote(uid, noteId, noteData, skipVersion = false) {
   const ref = doc(db, 'users', uid, 'notes', noteId);
+  
+  // If we are not skipping versioning, save a snapshot of the current state before updating
+  if (!skipVersion && noteData.content) {
+    await saveVersion(uid, noteId, {
+      content: noteData.content,
+      updatedAt: new Date()
+    });
+  }
+
   return updateDoc(ref, {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
     category: noteData.category || 'General',
     folderId: noteData.folderId || null,
     reminder: noteData.reminder || null,
+    attachments: noteData.attachments || [],
     updatedAt: serverTimestamp()
+  });
+}
+
+/**
+ * Save a version snapshot of a note.
+ */
+export async function saveVersion(uid, noteId, versionData) {
+  const versionsColl = collection(db, 'users', uid, 'notes', noteId, 'versions');
+  return addDoc(versionsColl, {
+    content: versionData.content,
+    updatedAt: serverTimestamp()
+  });
+}
+
+/**
+ * Get all versions of a note.
+ */
+export function subscribeToVersions(uid, noteId, callback) {
+  const versionsColl = collection(db, 'users', uid, 'notes', noteId, 'versions');
+  const q = query(versionsColl, orderBy('updatedAt', 'desc'));
+
+  return onSnapshot(q, (snapshot) => {
+    const versions = snapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+    callback(versions);
   });
 }
 

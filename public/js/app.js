@@ -12,8 +12,10 @@
 import { signUp, signIn, logOut, onAuthChange, resetPassword, signInWithGoogle, deleteAccount, linkEmailPassword } from './auth.js';
 import { 
   addNote, updateNote, deleteNote, subscribeToNotes, togglePin,
-  addFolder, deleteFolder, subscribeToFolders 
+  addFolder, deleteFolder, subscribeToFolders, subscribeToVersions 
 } from './db.js';
+import { storage } from './firebase-config.js';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 
 // ─────────────────────────────────────────────
@@ -71,10 +73,20 @@ const noteFolder     = document.getElementById('note-folder');
 const reminderBtn    = document.getElementById('reminder-btn');
 const exportPdfBtn   = document.getElementById('export-pdf-btn');
 const micBtn         = document.getElementById('mic-btn');
+const attachBtn      = document.getElementById('attach-btn');
+const attachmentInput = document.getElementById('attachment-input');
+const mediaTray      = document.getElementById('media-tray');
+
 const noteContent    = document.getElementById('note-content');
 const saveNoteBtn    = document.getElementById('save-note-btn');
 const closeModalBtn  = document.getElementById('close-modal-btn');
 const cancelModalBtn = document.getElementById('cancel-modal-btn');
+
+const historyToggleBtn = document.getElementById('history-toggle-btn');
+const historyPanel     = document.getElementById('history-panel');
+const closeHistoryBtn  = document.getElementById('close-history-btn');
+const versionList      = document.getElementById('version-list');
+const smartSuggestions = document.getElementById('smart-suggestions');
 
 
 // Command Palette
@@ -96,6 +108,12 @@ const gotItBtn        = document.getElementById('got-it-btn');
 
 // Toast Container
 const toastContainer = document.getElementById('toast-container');
+
+// Lightbox
+const lightboxOverlay  = document.getElementById('lightbox-overlay');
+const closeLightboxBtn = document.getElementById('close-lightbox-btn');
+const lightboxImg      = document.getElementById('lightbox-img');
+const lightboxCaption  = document.getElementById('lightbox-caption');
 
 // Support Modal
 const supportModal      = document.getElementById('support-modal-backdrop');
@@ -119,6 +137,8 @@ let currentCategory   = 'all';  // Active filter category
 let currentFolderId   = 'all';  // 'all', 'pinned', or folderId
 let isListening       = false;  // Voice capture state
 let recognition       = null;   // SpeechRecognition instance
+let currentAttachments = [];    // Local temp storage for uploads
+let unsubscribeVersions = null; // Cleanup for history
 
 // Command Palette State
 let isPaletteOpen     = false;
@@ -1156,6 +1176,12 @@ function openModal(mode, note = null) {
   noteCategory.value   = note ? note.category : 'General';
   noteContent.value    = note ? note.content  : '';
   
+  // Reset Premium State
+  currentAttachments = note && note.attachments ? [...note.attachments] : [];
+  renderMediaTray();
+  historyPanel.classList.add('hidden');
+  smartSuggestions.classList.add('hidden');
+
   // Smart Folder Pre-selection
   if (note) {
     noteFolder.value = note.folderId || 'none';
@@ -1184,6 +1210,17 @@ function closeModal() {
   noteFolder.value   = 'none';
   noteContent.value  = '';
   notePreviewArea.innerHTML = '';
+  
+  // Cleanup Premium State
+  currentAttachments = [];
+  mediaTray.classList.add('hidden');
+  historyPanel.classList.add('hidden');
+  smartSuggestions.classList.add('hidden');
+  if (unsubscribeVersions) {
+    unsubscribeVersions();
+    unsubscribeVersions = null;
+  }
+
   // Reset buttons
   saveNoteBtn.disabled = false;
   saveNoteBtn.textContent = 'Save Note';
@@ -1205,11 +1242,20 @@ saveNoteBtn.addEventListener('click', async () => {
   saveNoteBtn.textContent = 'Saving…';
 
   try {
+    const noteData = { 
+      title, 
+      content, 
+      category, 
+      folderId, 
+      reminder,
+      attachments: currentAttachments 
+    };
+
     if (editingNoteId) {
-      await updateNote(currentUser.uid, editingNoteId, { title, content, category, folderId, reminder });
+      await updateNote(currentUser.uid, editingNoteId, noteData);
       showToast('Note updated ✓', 'success');
     } else {
-      await addNote(currentUser.uid, { title, content, category, folderId, reminder });
+      await addNote(currentUser.uid, noteData);
       showToast('Note created ✓', 'success');
     }
     delete noteContent.dataset.reminder;
@@ -1750,6 +1796,318 @@ reviewBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="non
 reviewBtn.title = "Review Grammar";
 reviewBtn.addEventListener('click', reviewGrammar);
 micBtn.parentNode.insertBefore(reviewBtn, micBtn);
+
+// ─────────────────────────────────────────────
+// PREMIUM FEATURES LOGIC
+// ─────────────────────────────────────────────
+
+/**
+ * Initialize Dynamic Parallax Background.
+ * Responds to mouse move on desktop and device orientation on mobile.
+ */
+function initParallax() {
+  const isMobile = 'ontouchstart' in window;
+
+  if (isMobile) {
+    window.addEventListener('deviceorientation', (e) => {
+      // Gamma: left/right tilt (-90 to 90), Beta: front/back tilt (-180 to 180)
+      const x = e.gamma || 0;
+      const y = e.beta || 0;
+
+      // Map tilt to movement
+      document.body.style.setProperty('--px-1', `${x * 0.5}px`);
+      document.body.style.setProperty('--py-1', `${y * 0.5}px`);
+      document.body.style.setProperty('--px-2', `${x * -0.3}px`);
+      document.body.style.setProperty('--py-2', `${y * -0.3}px`);
+      document.body.style.setProperty('--px-3', `${x * 0.15}px`);
+      document.body.style.setProperty('--py-3', `${y * 0.15}px`);
+    });
+  } else {
+    window.addEventListener('mousemove', (e) => {
+      const x = (e.clientX - window.innerWidth / 2) / 25;
+      const y = (e.clientY - window.innerHeight / 2) / 25;
+
+      document.body.style.setProperty('--px-1', `${x}px`);
+      document.body.style.setProperty('--py-1', `${y}px`);
+      document.body.style.setProperty('--px-2', `${-x * 0.6}px`);
+      document.body.style.setProperty('--py-2', `${-y * 0.6}px`);
+      document.body.style.setProperty('--px-3', `${x * 0.3}px`);
+      document.body.style.setProperty('--py-3', `${y * 0.3}px`);
+    });
+  }
+}
+
+// Call on startup
+initParallax();
+
+/**
+ * ─────────────────────────────────────────────
+ * ATTACHMENT & MEDIA TRAY LOGIC
+ * ─────────────────────────────────────────────
+ */
+
+attachBtn.addEventListener('click', () => attachmentInput.click());
+
+attachmentInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // 1. Enforce 1MB Limit
+  const MAX_SIZE = 1 * 1024 * 1024; // 1MB
+  if (file.size > MAX_SIZE) {
+    showToast('File too large. Max limit is 1MB for premium mobile performance.', 'error');
+    attachmentInput.value = '';
+    return;
+  }
+
+  handleAttachmentUpload(file);
+});
+
+async function handleAttachmentUpload(file) {
+  if (!currentUser) return;
+
+  const fileId = Date.now();
+  const storageRef = ref(storage, `users/${currentUser.uid}/attachments/${editingNoteId || 'temp'}/${fileId}_${file.name}`);
+
+  // Create UI placeholder in tray
+  const mediaItem = createMediaPlaceholder(file.name, true);
+  mediaTray.appendChild(mediaItem);
+  mediaTray.classList.remove('hidden');
+
+  const uploadTask = uploadBytesResumable(storageRef, file);
+
+  uploadTask.on('state_changed',
+    (snapshot) => {
+      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+      const bar = mediaItem.querySelector('.media-progress-bar');
+      if (bar) bar.style.width = `${progress}%`;
+    },
+    (error) => {
+      console.error('[Upload] Error:', error);
+      showToast('Failed to upload attachment.', 'error');
+      mediaItem.remove();
+    },
+    async () => {
+      const url = await getDownloadURL(uploadTask.snapshot.ref);
+      const attachment = {
+        id: fileId,
+        name: file.name,
+        url: url,
+        size: file.size,
+        type: file.type,
+        storagePath: uploadTask.snapshot.ref.fullPath
+      };
+
+      currentAttachments.push(attachment);
+      renderMediaTray(); // Refresh to full state
+      showToast('Attachment added!', 'success');
+    }
+  );
+}
+
+function createMediaPlaceholder(name, isUploading) {
+  const el = document.createElement('div');
+  el.className = `media-item ${isUploading ? 'uploading' : ''}`;
+  el.innerHTML = `
+    <div class="file-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+        <polyline points="13 2 13 9 20 9"></polyline>
+      </svg>
+    </div>
+    ${isUploading ? '<div class="media-progress"><div class="media-progress-bar"></div></div>' : ''}
+  `;
+  return el;
+}
+
+function renderMediaTray() {
+  mediaTray.innerHTML = '';
+  if (currentAttachments.length === 0) {
+    mediaTray.classList.add('hidden');
+    return;
+  }
+
+  mediaTray.classList.remove('hidden');
+  currentAttachments.forEach(att => {
+    const el = document.createElement('div');
+    el.className = 'media-item';
+
+    const isImage = att.type.startsWith('image/');
+    if (isImage) {
+      el.innerHTML = `<img src="${att.url}" alt="${att.name}" loading="lazy" />`;
+    } else {
+      el.innerHTML = `
+        <div class="file-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+        </div>
+      `;
+    }
+
+    // Delete Badge
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-badge';
+    delBtn.innerHTML = '&times;';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteAttachment(att);
+    });
+
+    el.appendChild(delBtn);
+    el.addEventListener('click', () => openLightbox(att));
+    mediaTray.appendChild(el);
+  });
+}
+
+async function deleteAttachment(attachment) {
+  if (!confirm('Remove this attachment?')) return;
+
+  try {
+    const fileRef = ref(storage, attachment.storagePath);
+    await deleteObject(fileRef);
+    currentAttachments = currentAttachments.filter(a => a.id !== attachment.id);
+    renderMediaTray();
+    showToast('Attachment removed.', 'success');
+  } catch (err) {
+    console.error('[Delete] Storage error:', err);
+    // Even if storage fails (maybe already gone), update local UI
+    currentAttachments = currentAttachments.filter(a => a.id !== attachment.id);
+    renderMediaTray();
+  }
+}
+
+/**
+ * ─────────────────────────────────────────────
+ * LIGHTBOX LOGIC
+ * ─────────────────────────────────────────────
+ */
+
+function openLightbox(att) {
+  if (!att.type.startsWith('image/')) {
+    window.open(att.url, '_blank');
+    return;
+  }
+
+  lightboxImg.src = att.url;
+  lightboxCaption.textContent = `${att.name} (${(att.size / 1024).toFixed(1)} KB)`;
+  lightboxOverlay.classList.remove('hidden');
+  lightboxOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function closeLightbox() {
+  lightboxOverlay.classList.add('hidden');
+  lightboxOverlay.setAttribute('aria-hidden', 'true');
+  lightboxImg.src = '';
+}
+
+closeLightboxBtn.addEventListener('click', closeLightbox);
+lightboxOverlay.addEventListener('click', (e) => {
+  if (e.target === lightboxOverlay) closeLightbox();
+});
+
+/**
+ * ─────────────────────────────────────────────
+ * SMART FOLDER SUGGESTIONS
+ * ─────────────────────────────────────────────
+ */
+
+noteTitle.addEventListener('input', updateSmartSuggestions);
+
+function updateSmartSuggestions() {
+  const title = noteTitle.value.toLowerCase();
+  smartSuggestions.classList.add('hidden');
+
+  if (!title || editingNoteId) return; // Only for new notes
+
+  const rules = [
+    { keywords: ['meeting', 'sync', 'standup', 'call'], folder: 'Work' },
+    { keywords: ['buy', 'shop', 'grocery', 'list'], folder: 'Personal' },
+    { keywords: ['idea', 'brainstorm', 'think'], folder: 'Ideas' }
+  ];
+
+  const match = rules.find(r => r.keywords.some(k => title.includes(k)));
+
+  if (match) {
+    const targetFolder = allFolders.find(f => f.name.toLowerCase() === match.folder.toLowerCase());
+    if (targetFolder) {
+      smartSuggestions.innerHTML = `
+        <span>Suggest moving to <strong>${targetFolder.name}</strong>?</span>
+        <button class="suggestion-btn" id="apply-suggestion-btn">Apply</button>
+      `;
+      smartSuggestions.classList.remove('hidden');
+
+      const applyBtn = document.getElementById('apply-suggestion-btn');
+      if (applyBtn) {
+        applyBtn.onclick = () => {
+          noteFolder.value = targetFolder.id;
+          smartSuggestions.classList.add('hidden');
+          showToast(`Moved to ${targetFolder.name}`, 'success');
+        };
+      }
+    }
+  }
+}
+
+/**
+ * ─────────────────────────────────────────────
+ * VERSION HISTORY LOGIC
+ * ─────────────────────────────────────────────
+ */
+
+historyToggleBtn.addEventListener('click', () => {
+  historyPanel.classList.toggle('hidden');
+  if (!historyPanel.classList.contains('hidden')) {
+    loadNoteHistory();
+  }
+});
+
+closeHistoryBtn.addEventListener('click', () => historyPanel.classList.add('hidden'));
+
+function loadNoteHistory() {
+  if (!editingNoteId || !currentUser) {
+    versionList.innerHTML = '<div class="palette-group-title">No history for new notes</div>';
+    return;
+  }
+
+  versionList.innerHTML = '<div class="palette-group-title">Loading history...</div>';
+
+  if (unsubscribeVersions) unsubscribeVersions();
+
+  unsubscribeVersions = subscribeToVersions(currentUser.uid, editingNoteId, (versions) => {
+    renderVersionList(versions);
+  });
+}
+
+function renderVersionList(versions) {
+  versionList.innerHTML = '';
+  if (versions.length === 0) {
+    versionList.innerHTML = '<div class="palette-group-title">No snapshots yet</div>';
+    return;
+  }
+
+  versions.forEach(v => {
+    const el = document.createElement('div');
+    el.className = 'version-item';
+    const date = v.updatedAt?.toDate().toLocaleString() || 'Recent';
+
+    el.innerHTML = `
+      <div class="version-date">${date}</div>
+      <div class="version-preview">${escapeHtml(v.content)}</div>
+    `;
+
+    el.onclick = () => {
+      if (confirm('Restore this version? Your current unsaved changes will be overwritten.')) {
+        noteContent.value = v.content;
+        historyPanel.classList.add('hidden');
+        showToast('Version restored. Don\'t forget to save!', 'success');
+      }
+    };
+
+    versionList.appendChild(el);
+  });
+}
 
 // ─────────────────────────────────────────────
 // Register Service Worker
