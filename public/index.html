@@ -471,9 +471,15 @@
           <div id="note-preview" class="note-preview hidden" aria-label="Markdown preview"></div>
         </div>
 
-        <!-- Media Tray for Attachments -->
-        <div id="media-tray" class="media-tray hidden">
-          <!-- Dynamic thumbnails -->
+        <!-- Attachments: always visible in editor so uploads are obvious -->
+        <div class="attachments-panel" id="attachments-panel" aria-label="Note attachments">
+          <div class="attachments-panel-header">
+            <span class="attachments-panel-title">Attachments</span>
+            <span class="attachments-panel-meta">Images or PDF · max 1MB</span>
+          </div>
+          <div id="media-tray" class="media-tray media-tray--empty" role="list" aria-live="polite">
+            <!-- Filled by app.js -->
+          </div>
         </div>
 
         <!-- Smart Suggestions -->

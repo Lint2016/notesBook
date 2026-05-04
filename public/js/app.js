@@ -1213,7 +1213,7 @@ function closeModal() {
   
   // Cleanup Premium State
   currentAttachments = [];
-  mediaTray.classList.add('hidden');
+  renderMediaTray();
   historyPanel.classList.add('hidden');
   smartSuggestions.classList.add('hidden');
   if (unsubscribeVersions) {
@@ -1870,9 +1870,12 @@ async function handleAttachmentUpload(file) {
   const storageRef = ref(storage, `users/${currentUser.uid}/attachments/${editingNoteId || 'temp'}/${fileId}_${file.name}`);
 
   // Create UI placeholder in tray
+  if (mediaTray.querySelector('.media-tray-empty-msg')) {
+    mediaTray.innerHTML = '';
+    mediaTray.classList.remove('media-tray--empty');
+  }
   const mediaItem = createMediaPlaceholder(file.name, true);
   mediaTray.appendChild(mediaItem);
-  mediaTray.classList.remove('hidden');
 
   const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -1886,6 +1889,7 @@ async function handleAttachmentUpload(file) {
       console.error('[Upload] Error:', error);
       showToast('Failed to upload attachment.', 'error');
       mediaItem.remove();
+      if (currentAttachments.length === 0) renderMediaTray();
     },
     async () => {
       const url = await getDownloadURL(uploadTask.snapshot.ref);
@@ -1923,11 +1927,13 @@ function createMediaPlaceholder(name, isUploading) {
 function renderMediaTray() {
   mediaTray.innerHTML = '';
   if (currentAttachments.length === 0) {
-    mediaTray.classList.add('hidden');
+    mediaTray.classList.add('media-tray--empty');
+    mediaTray.innerHTML =
+      '<p class="media-tray-empty-msg">No attachments yet. Tap the paperclip in the toolbar to add an image or PDF (max 1MB). They appear here before you save.</p>';
     return;
   }
 
-  mediaTray.classList.remove('hidden');
+  mediaTray.classList.remove('media-tray--empty');
   currentAttachments.forEach(att => {
     const el = document.createElement('div');
     el.className = 'media-item';
