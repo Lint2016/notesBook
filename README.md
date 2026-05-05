@@ -62,7 +62,7 @@ graph TD
 ```
 
 ### 2. Offline-First Synchronization
-*How the Service Worker handles offline data creation and background syncing.*
+*How offline note writes work (Firestore SDK + IndexedDB) and how the Service Worker supports offline app loading.*
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -72,20 +72,42 @@ sequenceDiagram
     participant FS as Firestore (Cloud)
 
     U->>P: Create/Edit Note
-    P->>SW: Save Request
     alt is Online
-        SW->>FS: Save Data to Cloud
-        FS-->>P: Success (Synced)
+        P->>FS: Write via Firestore SDK
+        FS-->>P: Ack (Synced)
     else is Offline
-        SW->>IDB: Save Data Locally
-        IDB-->>P: Success (Saved Locally)
-        Note over P,SW: Offline Mode Indicator Active
+        P->>IDB: Persist locally (Firestore SDK offline)
+        IDB-->>P: Ack (Saved locally)
+        Note over P: Offline mode continues
     end
     
     opt Network Restored
-        SW->>IDB: Fetch Local Changes
-        SW->>FS: Background Sync to Cloud
-        FS-->>P: Success (Synced)
+        IDB-->>FS: Sync queued writes (Firestore SDK)
+        FS-->>P: Sync complete
+    end
+```
+
+### 3. PWA Update Lifecycle (Option A)
+*How new versions are detected without forcing a reload.*
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant P as PWA (Client)
+    participant SW1 as Active SW
+    participant SW2 as New SW (waiting)
+
+    P->>SW1: Load app shell + assets (cached)
+    P->>SW2: Check for update (browser)
+    SW2-->>P: Installed (waiting)
+    P-->>U: "New version available" banner
+    alt User clicks "Later"
+        U-->>P: Dismiss banner
+        Note over P,SW2: Update stays waiting
+    else User clicks "Refresh"
+        U-->>P: Approve refresh
+        P->>SW2: postMessage(SKIP_WAITING)
+        SW2-->>P: Activates + clients.claim
+        P->>P: Reload (controllerchange)
     end
 ```
 

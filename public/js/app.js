@@ -2123,17 +2123,80 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then((reg) => {
         console.log('[App] Service Worker registered');
-        
-        // Listen for updates
-        reg.onupdatefound = () => {
-          const installingWorker = reg.installing;
-          installingWorker.onstatechange = () => {
-            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New content is available; please refresh.
-              showToast('App update available! Refresh to sync.', 'success');
+
+        // Controlled update UX:
+        // - detect a waiting SW
+        // - ask user to refresh
+        // - only then trigger skipWaiting and reload on controllerchange
+        let updateAccepted = false;
+
+        function showUpdateBanner(sw) {
+          if (!sw) return;
+          if (document.getElementById('pwa-update-banner')) return;
+
+          const banner = document.createElement('div');
+          banner.id = 'pwa-update-banner';
+          banner.className = 'pwa-update-banner';
+          banner.setAttribute('role', 'status');
+          banner.setAttribute('aria-live', 'polite');
+
+          banner.innerHTML = `
+            <div class="pwa-update-banner__content">
+              <span class="pwa-update-banner__text">New version available.</span>
+              <div class="pwa-update-banner__actions">
+                <button type="button" class="pwa-update-banner__btn pwa-update-banner__btn--secondary" data-action="dismiss">Later</button>
+                <button type="button" class="pwa-update-banner__btn pwa-update-banner__btn--primary" data-action="refresh">Refresh</button>
+              </div>
+            </div>
+          `;
+
+          banner.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.getAttribute('data-action');
+
+            if (action === 'dismiss') {
+              banner.remove();
+              return;
             }
-          };
-        };
+
+            if (action === 'refresh') {
+              updateAccepted = true;
+              // Ask the waiting worker to activate now.
+              sw.postMessage({ type: 'SKIP_WAITING' });
+              btn.disabled = true;
+              btn.textContent = 'Refreshing…';
+            }
+          });
+
+          document.body.appendChild(banner);
+          setTimeout(() => banner.classList.add('visible'), 50);
+        }
+
+        // If there's already a waiting worker (e.g. user opened a tab after an update finished),
+        // surface it immediately.
+        if (reg.waiting && navigator.serviceWorker.controller) {
+          showUpdateBanner(reg.waiting);
+        }
+
+        // Listen for updates (installing -> installed -> waiting)
+        reg.addEventListener('updatefound', () => {
+          const installingWorker = reg.installing;
+          if (!installingWorker) return;
+
+          installingWorker.addEventListener('statechange', () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // A new SW is installed but waiting to activate (until we call skipWaiting).
+              showUpdateBanner(installingWorker);
+            }
+          });
+        });
+
+        // Once the new SW activates and takes control, reload only if the user opted in.
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!updateAccepted) return;
+          window.location.reload();
+        });
       })
       .catch((err) => console.warn('[App] SW registration failed:', err));
   });

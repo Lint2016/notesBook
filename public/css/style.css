@@ -1934,6 +1934,77 @@ body::before {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* --- PWA Update Banner (non-intrusive, user-controlled refresh) --- */
+.pwa-update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(10px);
+  opacity: 0;
+  z-index: 520;
+  width: min(520px, calc(100vw - 24px));
+  pointer-events: auto;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.pwa-update-banner.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.pwa-update-banner__content {
+  background: rgba(30, 30, 50, 0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 12px 12px 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.pwa-update-banner__text {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.9);
+}
+
+.pwa-update-banner__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pwa-update-banner__btn {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  cursor: pointer;
+}
+
+.pwa-update-banner__btn:hover {
+  background: rgba(255,255,255,0.10);
+}
+
+.pwa-update-banner__btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.pwa-update-banner__btn--primary {
+  background: rgba(124, 77, 255, 0.25);
+  border-color: rgba(124, 77, 255, 0.55);
+}
+
+.pwa-update-banner__btn--primary:hover {
+  background: rgba(124, 77, 255, 0.32);
+}
+
 /* Delete Confirm Dialog */
 .confirm-dialog {
   position: fixed;
