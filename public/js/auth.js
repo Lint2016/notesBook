@@ -8,7 +8,7 @@
  * - onAuthStateChanged listener
  */
 
-import { auth, db } from './firebase-config.js';
+import { auth, db, logAnalyticsEvent } from './firebase-config.js';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -59,6 +59,8 @@ export async function signUp(username, email, password) {
     createdAt: serverTimestamp()
   });
 
+  logAnalyticsEvent('sign_up', { method: 'email', uid: user.uid });
+
   return credential;
 }
 
@@ -69,7 +71,9 @@ export async function signUp(username, email, password) {
  * @returns {Promise<UserCredential>}
  */
 export async function signIn(email, password) {
-  return signInWithEmailAndPassword(auth, email, password);
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  logAnalyticsEvent('login', { method: 'email', uid: credential.user.uid });
+  return credential;
 }
 
 /**
@@ -86,6 +90,7 @@ export async function resetPassword(email) {
  * @returns {Promise<void>}
  */
 export async function logOut() {
+  logAnalyticsEvent('logout');
   return signOut(auth);
 }
 
@@ -113,6 +118,11 @@ export async function signInWithGoogle() {
       createdAt: serverTimestamp(),
       provider: 'google'
     });
+  }
+
+  logAnalyticsEvent('login', { method: 'google', uid: user.uid, is_new_user: isNewUser });
+  if (isNewUser) {
+    logAnalyticsEvent('sign_up', { method: 'google', uid: user.uid });
   }
 
   return { credential, isNewUser };

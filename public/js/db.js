@@ -13,7 +13,7 @@
  *   This Firestore path structure also maps cleanly to Security Rules.
  */
 
-import { db } from './firebase-config.js';
+import { db, logAnalyticsEvent } from './firebase-config.js';
 import {
   collection,
   doc,
@@ -45,14 +45,8 @@ function foldersRef(uid) {
 }
 
 
-/**
- * Add a new note for the authenticated user.
- * @param {string} uid
- * @param {object} noteData - { title, content, attachments }
- * @returns {Promise<DocumentReference>}
- */
 export async function addNote(uid, noteData) {
-  return addDoc(notesRef(uid), {
+  const docRef = await addDoc(notesRef(uid), {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
     category: noteData.category || 'General',
@@ -63,6 +57,8 @@ export async function addNote(uid, noteData) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+  logAnalyticsEvent('create_note', { category: noteData.category || 'General' });
+  return docRef;
 }
 
 
@@ -85,7 +81,7 @@ export async function updateNote(uid, noteId, noteData, skipVersion = false) {
     });
   }
 
-  return updateDoc(ref, {
+  const updateResult = await updateDoc(ref, {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
     category: noteData.category || 'General',
@@ -94,6 +90,8 @@ export async function updateNote(uid, noteId, noteData, skipVersion = false) {
     attachments: noteData.attachments || [],
     updatedAt: serverTimestamp()
   });
+  logAnalyticsEvent('update_note');
+  return updateResult;
 }
 
 /**
@@ -124,15 +122,11 @@ export function subscribeToVersions(uid, noteId, callback) {
 }
 
 
-/**
- * Delete a note.
- * @param {string} uid
- * @param {string} noteId
- * @returns {Promise<void>}
- */
 export async function deleteNote(uid, noteId) {
   const ref = doc(db, 'users', uid, 'notes', noteId);
-  return deleteDoc(ref);
+  const deleteResult = await deleteDoc(ref);
+  logAnalyticsEvent('delete_note');
+  return deleteResult;
 }
 
 /**
@@ -175,15 +169,14 @@ export function subscribeToNotes(uid, callback) {
 // Folder Operations
 // ─────────────────────────────────────────────
 
-/**
- * Add a new folder.
- */
 export async function addFolder(uid, name, parentId = null) {
-  return addDoc(foldersRef(uid), {
+  const docRef = await addDoc(foldersRef(uid), {
     name: name.trim(),
     parentId,
     createdAt: serverTimestamp()
   });
+  logAnalyticsEvent('create_folder');
+  return docRef;
 }
 
 /**
@@ -191,7 +184,9 @@ export async function addFolder(uid, name, parentId = null) {
  */
 export async function deleteFolder(uid, folderId) {
   const ref = doc(db, 'users', uid, 'folders', folderId);
-  return deleteDoc(ref);
+  const deleteResult = await deleteDoc(ref);
+  logAnalyticsEvent('delete_folder');
+  return deleteResult;
 }
 
 /**

@@ -17,6 +17,7 @@ import {
   persistentMultipleTabManager
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCPooDJXx4Qzjl4yorspa4RNv-pNrIKNdI",
@@ -48,3 +49,15 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager()
   })
 });
+
+// Initialize Firebase Analytics
+export const analytics = getAnalytics(app);
+
+/**
+ * Helper to log custom events to Firebase Analytics.
+ * @param {string} eventName 
+ * @param {object} params 
+ */
+export function logAnalyticsEvent(eventName, params = {}) {
+  logEvent(analytics, eventName, params);
+}

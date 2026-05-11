@@ -14,7 +14,7 @@ import {
   addNote, updateNote, deleteNote, subscribeToNotes, togglePin,
   addFolder, deleteFolder, subscribeToFolders, subscribeToVersions 
 } from './db.js';
-import { storage } from './firebase-config.js';
+import { storage, logAnalyticsEvent } from './firebase-config.js';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 
@@ -167,6 +167,7 @@ installBtn.addEventListener('click', async () => {
   // Wait for the user to respond to the prompt
   const { outcome } = await deferredPrompt.userChoice;
   console.log(`[PWA] User response to install prompt: ${outcome}`);
+  logAnalyticsEvent('pwa_install_click', { outcome });
   // We've used the prompt, and can't use it again, throw it away
   deferredPrompt = null;
   // Hide UI
@@ -179,6 +180,7 @@ window.addEventListener('appinstalled', () => {
   // Clear the deferredPrompt so it can be garbage collected
   deferredPrompt = null;
   console.log('[PWA] App successfully installed');
+  logAnalyticsEvent('pwa_installed');
 });
 
 // ─────────────────────────────────────────────
@@ -426,6 +428,7 @@ supportForm.addEventListener('submit', async (e) => {
     });
 
     if (response.ok) {
+      logAnalyticsEvent('support_form_submit', { subject: data.subject });
       showToast('Message sent successfully! We will get back to you soon.', 'success');
       toggleSupportModal(false);
     } else {
@@ -448,6 +451,8 @@ supportForm.addEventListener('submit', async (e) => {
 function showApp(user) {
   authSection.classList.add('hidden');
   appSection.classList.remove('hidden');
+
+  logAnalyticsEvent('screen_view', { screen_name: 'Dashboard' });
 
   // Dynamic Greeting
   const name = user.displayName || user.email.split('@')[0];
@@ -487,6 +492,8 @@ function showApp(user) {
 function showAuth() {
   appSection.classList.add('hidden');
   authSection.classList.remove('hidden');
+
+  logAnalyticsEvent('screen_view', { screen_name: 'Auth' });
 
   // Reset auth buttons state
   const loginSubmitBtn  = document.getElementById('login-submit-btn');
@@ -1240,6 +1247,8 @@ saveNoteBtn.addEventListener('click', async () => {
 
   saveNoteBtn.disabled = true;
   saveNoteBtn.textContent = 'Saving…';
+
+  logAnalyticsEvent('save_button_click', { mode: editingNoteId ? 'edit' : 'new' });
 
   try {
     const noteData = { 
@@ -2201,4 +2210,20 @@ if ('serviceWorker' in navigator) {
       .catch((err) => console.warn('[App] SW registration failed:', err));
   });
 }
+
+// ─────────────────────────────────────────────
+// Global Tracking: Copy & Paste
+// ─────────────────────────────────────────────
+document.addEventListener('copy', () => {
+  logAnalyticsEvent('copy_action', { 
+    page: currentUser ? 'Dashboard' : 'Auth',
+    text_length: window.getSelection().toString().length 
+  });
+});
+
+document.addEventListener('paste', () => {
+  logAnalyticsEvent('paste_action', { 
+    page: currentUser ? 'Dashboard' : 'Auth'
+  });
+});
 
