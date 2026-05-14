@@ -1404,6 +1404,8 @@ function highlightText(text = '', query = '', isMarkdown = false) {
 /**
  * Voice Capture Logic
  */
+let originalNoteContent = '';
+
 function initVoiceCapture() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
@@ -1417,12 +1419,22 @@ function initVoiceCapture() {
   recognition.lang = 'en-US';
 
   recognition.onresult = (event) => {
-    let interimTranscript = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
+    let sessionFinal = '';
+    let sessionInterim = '';
+    for (let i = 0; i < event.results.length; ++i) {
       if (event.results[i].isFinal) {
-        noteContent.value += (noteContent.value ? ' ' : '') + event.results[i][0].transcript;
+        sessionFinal += event.results[i][0].transcript;
+      } else {
+        sessionInterim += event.results[i][0].transcript;
       }
     }
+    
+    let newContent = originalNoteContent;
+    if (newContent && (sessionFinal || sessionInterim) && !newContent.endsWith(' ')) {
+      newContent += ' ';
+    }
+    newContent += sessionFinal + sessionInterim;
+    noteContent.value = newContent;
   };
 
   recognition.onstart = () => {
@@ -1455,6 +1467,7 @@ function toggleListening() {
 
 function startListening() {
   try {
+    originalNoteContent = noteContent.value;
     recognition.start();
   } catch (err) {
     console.error('Speech recognition start failed', err);
