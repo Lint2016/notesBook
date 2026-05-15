@@ -1228,6 +1228,14 @@ function closeModal() {
     unsubscribeVersions = null;
   }
 
+  // ✅ FIX: Stop any active recording and reset the recognition instance
+  // so that originalNoteContent / finalTranscriptAccumulator never bleed
+  // across sessions from one note open to the next.
+  if (isListening) stopListening();
+  recognition = null;           // Force re-init on next modal open
+  originalNoteContent = '';
+  finalTranscriptAccumulator = '';
+
   // Reset buttons
   saveNoteBtn.disabled = false;
   saveNoteBtn.textContent = 'Save Note';
@@ -1403,8 +1411,16 @@ function highlightText(text = '', query = '', isMarkdown = false) {
 
 /**
  * Voice Capture Logic
+ *
+ * KEY DESIGN NOTES (fixes duplication bug):
+ * - event.results is a CUMULATIVE list for the whole session.
+ * - We must loop from event.resultIndex (not 0) to only process NEW results.
+ * - finalTranscriptAccumulator collects all finalized words across result events
+ *   within a single session, so we never re-append already-committed text.
+ * - originalNoteContent anchors what was in the textarea when recording started.
  */
 let originalNoteContent = '';
+let finalTranscriptAccumulator = '';
 
 function initVoiceCapture() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1419,21 +1435,29 @@ function initVoiceCapture() {
   recognition.lang = 'en-US';
 
   recognition.onresult = (event) => {
-    let sessionFinal = '';
-    let sessionInterim = '';
-    for (let i = 0; i < event.results.length; ++i) {
+    // ✅ FIX: Only process results starting at resultIndex — not from 0.
+    // This prevents re-collecting already-processed results on every event fire.
+    let interimTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const transcript = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
-        sessionFinal += event.results[i][0].transcript;
+        // Append finalized word(s) to our session accumulator
+        finalTranscriptAccumulator += (finalTranscriptAccumulator ? ' ' : '') + transcript.trim();
       } else {
-        sessionInterim += event.results[i][0].transcript;
+        // Collect interim (in-progress) text to show as a live preview
+        interimTranscript += transcript;
       }
     }
-    
+
+    // Compose the full textarea value:
+    //   [original text] + [all finalized speech this session] + [current interim]
     let newContent = originalNoteContent;
-    if (newContent && (sessionFinal || sessionInterim) && !newContent.endsWith(' ')) {
+    const spokenSoFar = finalTranscriptAccumulator + (interimTranscript ? ' ' + interimTranscript : '');
+    if (newContent && spokenSoFar && !newContent.endsWith(' ')) {
       newContent += ' ';
     }
-    newContent += sessionFinal + sessionInterim;
+    newContent += spokenSoFar;
     noteContent.value = newContent;
   };
 
@@ -1448,8 +1472,12 @@ function initVoiceCapture() {
     micBtn.classList.remove('listening');
   };
 
-  recognition.onerror = () => {
-    showToast('Microphone error', 'error');
+  recognition.onerror = (event) => {
+    // Don't show an error for 'no-speech' — it fires naturally when the user
+    // stops talking and is not a real failure.
+    if (event.error !== 'no-speech') {
+      showToast('Microphone error: ' + event.error, 'error');
+    }
     stopListening();
   };
 }
@@ -1467,7 +1495,9 @@ function toggleListening() {
 
 function startListening() {
   try {
+    // Snapshot the current textarea value and reset session accumulator
     originalNoteContent = noteContent.value;
+    finalTranscriptAccumulator = '';
     recognition.start();
   } catch (err) {
     console.error('Speech recognition start failed', err);
