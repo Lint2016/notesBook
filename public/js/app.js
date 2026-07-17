@@ -87,30 +87,12 @@ onAuthStateChanged(auth, async (user) => {
     greetingName.textContent = escapeHtml(user.displayName || user.email.split('@')[0] || 'User');
     dynamicGreeting.textContent = getDynamicGreeting() + ',';
 
-    // Reload user to get fresh emailVerified status (Firebase caches it)
-    await user.reload();
-    const freshUser = auth.currentUser;
-
-    const isGoogleOnly     = freshUser.providerData.length === 1 && freshUser.providerData[0].providerId === 'google.com';
-    const isAnonymous      = freshUser.isAnonymous;
-    const isEmailVerified  = freshUser.emailVerified;
+    const isGoogleOnly     = user.providerData.length === 1 && user.providerData[0].providerId === 'google.com';
+    const isAnonymous      = user.isAnonymous;
 
     if (!isAnonymous && isGoogleOnly && !sessionStorage.getItem('password-prompt-shown')) {
       sessionStorage.setItem('password-prompt-shown', 'true');
-      showSetPasswordPrompt(freshUser);
-    }
-
-    // Only show the banner if email is genuinely unverified AND it isn't already in the DOM
-    if (!isAnonymous && !isEmailVerified && !isGoogleOnly && !document.querySelector('.verification-banner')) {
-      const banner = document.createElement('div');
-      banner.className = 'verification-banner fade-in';
-      banner.innerHTML = `
-        <span>Please verify your email address. Check your inbox.</span>
-        <button class="icon-btn" onclick="this.parentElement.remove()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      `;
-      document.body.prepend(banner);
+      showSetPasswordPrompt(user);
     }
 
     renderSkeletons(4);
