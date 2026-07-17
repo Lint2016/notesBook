@@ -67,22 +67,24 @@ export function setupAuthUI() {
   });
 
   loginForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    loginError?.classList.add('hidden');
+  e.preventDefault();
+  loginError?.classList.add('hidden');
 
-    const email     = document.getElementById('login-email')?.value.trim();
-    const password  = document.getElementById('login-password')?.value;
-    const submitBtn = document.getElementById('login-submit-btn');
+  const email = document.getElementById('login-email')?.value.trim();
+  const password = document.getElementById('login-password')?.value;
+  const submitBtn = document.getElementById('login-submit-btn');
 
-    setLoading(submitBtn, true, 'Signing in…');
-    try {
-      await signIn(email, password);
-    } catch (err) {
-      console.warn('[Auth] Sign-in failed:', err.code, err.message);
-      showFormError(loginError, friendlyAuthError(err.code));
-      setLoading(submitBtn, false, 'Sign In');
-    }
-  });
+  setLoading(submitBtn, true, 'Signing in…');
+
+  try {
+    await signIn(email, password);
+  } catch (err) {
+    console.warn('[Auth] Sign-in failed:', err.code, err.message);
+    showFormError(loginError, friendlyAuthError(err.code));
+  } finally {
+    setLoading(submitBtn, false, 'Sign In');
+  }
+});
 
   [document.getElementById('google-login-btn'), document.getElementById('google-signup-btn')]
     .forEach(btn => {
