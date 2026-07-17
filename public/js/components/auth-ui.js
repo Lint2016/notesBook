@@ -117,11 +117,30 @@ export function switchTab(tab) {
   tabSignup?.classList.toggle('active', isSignup);
   loginForm?.classList.toggle('hidden', !isLogin);
   signupForm?.classList.toggle('hidden', !isSignup);
-  forgotForm?.classList.toggle('hidden', !isForgot);
+  forgotForm?.toggleAttribute?.('hidden', !isForgot); // forgotForm can be toggled
+  if (forgotForm) forgotForm.classList.toggle('hidden', !isForgot);
+
   loginError?.classList.add('hidden');
   signupError?.classList.add('hidden');
   forgotError?.classList.add('hidden');
   forgotSuccess?.classList.add('hidden');
+
+  // Reset forms and loading states
+  if (loginForm) {
+    loginForm.reset();
+    const loginBtn = document.getElementById('login-submit-btn');
+    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In'; }
+  }
+  if (signupForm) {
+    signupForm.reset();
+    const signupBtn = signupForm.querySelector('.btn-primary');
+    if (signupBtn) { signupBtn.disabled = false; signupBtn.textContent = 'Create Account'; }
+  }
+  if (forgotForm) {
+    forgotForm.reset();
+    const forgotBtn = document.getElementById('forgot-submit-btn');
+    if (forgotBtn) { forgotBtn.disabled = false; forgotBtn.textContent = 'Send Reset Link'; }
+  }
 
   document.querySelector('.auth-tabs')?.classList.toggle('hidden', isForgot);
 }
