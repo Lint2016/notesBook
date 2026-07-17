@@ -72,7 +72,7 @@ function initApp() {
 
 // --- Auth State Observer ---
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     if (sessionStorage.getItem('account-deleted') === '1') {
       logOut().then(() => sessionStorage.removeItem('account-deleted'));
@@ -87,16 +87,21 @@ onAuthStateChanged(auth, (user) => {
     greetingName.textContent = escapeHtml(user.displayName || user.email.split('@')[0] || 'User');
     dynamicGreeting.textContent = getDynamicGreeting() + ',';
 
-    const isGoogleOnly = user.providerData.length === 1 && user.providerData[0].providerId === 'google.com';
-    const isAnonymous = user.isAnonymous;
-    const isEmailVerified = user.emailVerified;
+    // Reload user to get fresh emailVerified status (Firebase caches it)
+    await user.reload();
+    const freshUser = auth.currentUser;
+
+    const isGoogleOnly     = freshUser.providerData.length === 1 && freshUser.providerData[0].providerId === 'google.com';
+    const isAnonymous      = freshUser.isAnonymous;
+    const isEmailVerified  = freshUser.emailVerified;
 
     if (!isAnonymous && isGoogleOnly && !sessionStorage.getItem('password-prompt-shown')) {
       sessionStorage.setItem('password-prompt-shown', 'true');
-      showSetPasswordPrompt(user);
+      showSetPasswordPrompt(freshUser);
     }
 
-    if (!isAnonymous && !isEmailVerified && !isGoogleOnly) {
+    // Only show the banner if email is genuinely unverified AND it isn't already in the DOM
+    if (!isAnonymous && !isEmailVerified && !isGoogleOnly && !document.querySelector('.verification-banner')) {
       const banner = document.createElement('div');
       banner.className = 'verification-banner fade-in';
       banner.innerHTML = `
