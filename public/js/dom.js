@@ -20,6 +20,7 @@ export const forgotSuccess = document.getElementById('forgot-success');
 
 export const linkForgotPassword = document.getElementById('link-forgot-password');
 export const linkBackToLogin    = document.getElementById('link-back-to-login');
+export const frontExplainerBtn  = document.getElementById('front-explainer-btn');
 
 // Dashboard
 export const dynamicGreeting = document.getElementById('dynamic-greeting');
@@ -40,6 +41,7 @@ export const sidebarToggle   = document.getElementById('sidebar-toggle');
 export const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 export const folderList      = document.getElementById('folder-list');
 export const addFolderBtn    = document.getElementById('add-folder-btn');
+export const sidebarExplainerBtn = document.getElementById('sidebar-explainer-btn');
 export const navItems        = document.querySelectorAll('.nav-item');
 
 // Modal
@@ -99,3 +101,8 @@ export const cancelSupportBtn  = document.getElementById('cancel-support-btn');
 export const supportForm       = document.getElementById('support-form');
 export const submitSupportBtn  = document.getElementById('submit-support-btn');
 export const supportError      = document.getElementById('support-error');
+
+// Video Modal
+export const videoModalBackdrop = document.getElementById('video-modal-backdrop');
+export const closeVideoBtn = document.getElementById('close-video-btn');
+export const explainerIframe = document.getElementById('explainer-iframe');

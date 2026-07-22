@@ -7,7 +7,8 @@ import { state } from '../state.js';
 import { 
   guideModal, showGuideBtn, closeGuideBtn, gotItBtn,
   supportModal, showSupportBtn, closeSupportBtn, cancelSupportBtn,
-  supportForm, submitSupportBtn, supportError, sidebarToggle
+  supportForm, submitSupportBtn, supportError, sidebarToggle,
+  frontExplainerBtn, sidebarExplainerBtn, videoModalBackdrop, closeVideoBtn, explainerIframe
 } from '../dom.js';
 import { logAnalyticsEvent } from '../firebase-config.js';
 import { showToast } from '../utils/ui.js';
@@ -85,6 +86,38 @@ export function setupSupportModals() {
       submitSupportBtn.disabled = false;
     }
   });
+
+  // Video Explainer Modal
+  const openVideoModal = () => {
+    explainerIframe.src = 'https://www.youtube.com/embed/THgXgOnF6xo?autoplay=1';
+    videoModalBackdrop.classList.remove('hidden');
+  };
+
+  const closeVideoModal = () => {
+    explainerIframe.src = '';
+    videoModalBackdrop.classList.add('hidden');
+  };
+
+  if (frontExplainerBtn) {
+    frontExplainerBtn.addEventListener('click', openVideoModal);
+  }
+  
+  if (sidebarExplainerBtn) {
+    sidebarExplainerBtn.addEventListener('click', () => {
+      if (window.innerWidth < 1024) sidebarToggle.click(); // Close sidebar on mobile
+      openVideoModal();
+    });
+  }
+
+  if (closeVideoBtn) {
+    closeVideoBtn.addEventListener('click', closeVideoModal);
+  }
+
+  if (videoModalBackdrop) {
+    videoModalBackdrop.addEventListener('click', (e) => {
+      if (e.target === videoModalBackdrop) closeVideoModal();
+    });
+  }
 }
 
 export function toggleGuide(isOpen) {

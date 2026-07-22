@@ -45,6 +45,12 @@
         <img src="/assets/favicon.jpg" alt="NoteBook Logo" class="brand-logo" />
         <h1>NoteBook</h1>
         <p>Your private notes, anywhere.</p>
+        <button type="button" id="front-explainer-btn" class="btn-primary" style="margin-top: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; padding: 8px 16px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          Watch Explainer
+        </button>
       </header>
 
       <!-- Auth Card -->
@@ -279,6 +285,13 @@
             </svg>
             <span>Support</span>
           </button>
+          <button id="sidebar-explainer-btn" class="nav-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span>Explainer Video</span>
+          </button>
+
 
           <div class="sidebar-divider"></div>
 
@@ -625,6 +638,27 @@
     </div>
   </div>
 
+
+  <!-- ═══════════════════════════════════════════
+       VIDEO EXPLAINER MODAL
+  ══════════════════════════════════════════════ -->
+  <div id="video-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal" style="max-width: 800px; width: 90%; background: #000;">
+      <header class="modal-header" style="background: #111; border-bottom: 1px solid #333;">
+        <h3 style="color: #fff;">Explainer Video</h3>
+        <button id="close-video-btn" class="modal-close" style="color: #fff;" aria-label="Close video modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </header>
+      <div class="modal-body" style="padding: 0;">
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+          <iframe id="explainer-iframe" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ═══════════════════════════════════════════
        HIGH-END LIGHTBOX
