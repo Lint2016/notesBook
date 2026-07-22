@@ -395,19 +395,29 @@ function initVoiceCapture() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) { micBtn?.classList.add('hidden'); return; }
 
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
   state.recognition = new SpeechRecognition();
   state.recognition.continuous = true;
-  state.recognition.interimResults = true;
+  state.recognition.interimResults = !isMobile;
   state.recognition.lang = 'en-US';
 
   state.recognition.onresult = (event) => {
     let currentSessionTranscript = '';
     for (let i = 0; i < event.results.length; ++i) {
       const transcript = event.results[i][0].transcript;
-      if (currentSessionTranscript && !currentSessionTranscript.endsWith(' ') && !transcript.startsWith(' ')) {
-        currentSessionTranscript += ' ';
+      const trimmedCurrent = currentSessionTranscript.trim();
+      const trimmedTranscript = transcript.trim();
+      
+      // Handle edge cases where mobile browsers accumulate previous results into the current transcript string
+      if (trimmedCurrent && trimmedTranscript.toLowerCase().startsWith(trimmedCurrent.toLowerCase())) {
+        currentSessionTranscript = transcript;
+      } else {
+        if (currentSessionTranscript && !currentSessionTranscript.endsWith(' ') && !transcript.startsWith(' ')) {
+          currentSessionTranscript += ' ';
+        }
+        currentSessionTranscript += transcript;
       }
-      currentSessionTranscript += transcript;
     }
     
     let newContent = originalNoteContent;
