@@ -19,7 +19,6 @@ import { storage } from '../firebase-config.js';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 let originalNoteContent = '';
-let finalTranscriptAccumulator = '';
 
 export function setupEditor() {
   fabBtn?.addEventListener('click', () => openModal('new'));
@@ -167,7 +166,6 @@ function closeModal() {
   if (state.isListening) stopListening();
   state.recognition = null;
   originalNoteContent = '';
-  finalTranscriptAccumulator = '';
 
   if (saveNoteBtn) { saveNoteBtn.disabled = false; saveNoteBtn.textContent = 'Save Note'; }
 }
@@ -403,19 +401,21 @@ function initVoiceCapture() {
   state.recognition.lang = 'en-US';
 
   state.recognition.onresult = (event) => {
-    let interimTranscript = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
+    let currentSessionTranscript = '';
+    for (let i = 0; i < event.results.length; ++i) {
       const transcript = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalTranscriptAccumulator += (finalTranscriptAccumulator ? ' ' : '') + transcript.trim();
-      } else {
-        interimTranscript += transcript;
+      if (currentSessionTranscript && !currentSessionTranscript.endsWith(' ') && !transcript.startsWith(' ')) {
+        currentSessionTranscript += ' ';
       }
+      currentSessionTranscript += transcript;
     }
+    
     let newContent = originalNoteContent;
-    const spokenSoFar = finalTranscriptAccumulator + (interimTranscript ? ' ' + interimTranscript : '');
-    if (newContent && spokenSoFar && !newContent.endsWith(' ')) newContent += ' ';
-    newContent += spokenSoFar;
+    if (newContent && currentSessionTranscript && !newContent.endsWith(' ') && !currentSessionTranscript.startsWith(' ')) {
+      newContent += ' ';
+    }
+    newContent += currentSessionTranscript;
+    
     if (noteContent) noteContent.value = newContent;
   };
 
@@ -445,7 +445,6 @@ function toggleListening() {
 function startListening() {
   try {
     originalNoteContent = noteContent?.value || '';
-    finalTranscriptAccumulator = '';
     state.recognition.start();
   } catch (err) {
     console.error('Speech recognition start failed', err);
