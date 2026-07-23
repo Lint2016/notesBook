@@ -1,16 +1,26 @@
 /**
- * db.js
- * Handles all Firestore operations for Notes:
- * - Add Note
- * - Update Note
- * - Delete Note
- * - Real-time listener (onSnapshot) scoped to the authenticated user
- *
+ * ============================================================================
+ * FILE OVERVIEW: db.js
+ * ============================================================================
+ * Purpose:
+ * Handles all Firestore database operations for Notes and Folders.
+ * This includes CRUD operations and real-time listeners.
+ * 
+ * Where it fits in the application:
+ * Acts as the Data Access Object (DAO) layer for the application data.
+ * Called by UI components to mutate data, and by app.js to set up listeners.
+ * 
+ * Dependencies:
+ * - firebase-config.js (Firestore instance and Analytics)
+ * - Firebase Firestore SDK (For all queries and writes)
+ * 
  * Architecture Note:
- *   Notes are stored per-user under:
- *   /users/{uid}/notes/{noteId}
- *   This guarantees data isolation — users can never read each other's notes.
- *   This Firestore path structure also maps cleanly to Security Rules.
+ * Notes and Folders are stored per-user under:
+ * /users/{uid}/notes/{noteId}
+ * /users/{uid}/folders/{folderId}
+ * This hierarchical structure guarantees data isolation. Users can never 
+ * read each other's data, which aligns perfectly with Firestore Security Rules.
+ * ============================================================================
  */
 
 import { db, logAnalyticsEvent } from './firebase-config.js';
@@ -26,25 +36,38 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-/**
- * Returns the Firestore collection reference for a user's notes.
- * @param {string} uid - Firebase Auth user ID
- * @returns {CollectionReference}
- */
+// ----------------------------------------------------
+// Purpose:
+// Generates the Firestore collection reference for a specific user's notes.
+//
+// Why:
+// Reusability. Prevents typing out the path ('users', uid, 'notes') 
+// repeatedly and risking typos.
+// ----------------------------------------------------
 function notesRef(uid) {
   return collection(db, 'users', uid, 'notes');
 }
 
-/**
- * Returns the Firestore collection reference for a user's folders.
- * @param {string} uid - Firebase Auth user ID
- * @returns {CollectionReference}
- */
+// ----------------------------------------------------
+// Purpose:
+// Generates the Firestore collection reference for a specific user's folders.
+// ----------------------------------------------------
 function foldersRef(uid) {
   return collection(db, 'users', uid, 'folders');
 }
 
 
+// ----------------------------------------------------
+// Purpose:
+// Creates a new note document in Firestore.
+//
+// Expected Inputs:
+// - uid: The logged-in user's ID.
+// - noteData: Object containing title, content, folderId, etc.
+//
+// Async Operations:
+// - addDoc (Firestore write)
+// ----------------------------------------------------
 export async function addNote(uid, noteData) {
   const docRef = await addDoc(notesRef(uid), {
     title: noteData.title.trim() || 'Untitled',
@@ -62,14 +85,22 @@ export async function addNote(uid, noteData) {
 }
 
 
-/**
- * Update an existing note.
- * @param {string} uid
- * @param {string} noteId
- * @param {object} noteData - { title, content, attachments }
- * @param {boolean} skipVersion - If true, don't save a version snapshot
- * @returns {Promise<void>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Updates an existing note. Optionally saves the previous state to a 
+// history subcollection before applying the update.
+//
+// Why:
+// The version history feature allows users to recover accidental deletions
+// or track changes over time.
+//
+// Expected Inputs:
+// - skipVersion: A flag to disable version history saving for minor edits (like pinning).
+//
+// Async Operations:
+// - saveVersion (Custom Firestore write to subcollection)
+// - updateDoc (Firestore write to main document)
+// ----------------------------------------------------
 export async function updateNote(uid, noteId, noteData, skipVersion = false) {
   const ref = doc(db, 'users', uid, 'notes', noteId);
   
@@ -94,9 +125,14 @@ export async function updateNote(uid, noteId, noteData, skipVersion = false) {
   return updateResult;
 }
 
-/**
- * Save a version snapshot of a note.
- */
+// ----------------------------------------------------
+// Purpose:
+// Saves a snapshot of a note's content into a 'versions' subcollection.
+//
+// Why:
+// Implements the note history feature. Stored in a subcollection so it 
+// doesn't bloat the main note document read operations.
+// ----------------------------------------------------
 export async function saveVersion(uid, noteId, versionData) {
   const versionsColl = collection(db, 'users', uid, 'notes', noteId, 'versions');
   return addDoc(versionsColl, {
@@ -105,9 +141,10 @@ export async function saveVersion(uid, noteId, versionData) {
   });
 }
 
-/**
- * Get all versions of a note.
- */
+// ----------------------------------------------------
+// Purpose:
+// Listens to the version history for a specific note in real-time.
+// ----------------------------------------------------
 export function subscribeToVersions(uid, noteId, callback) {
   const versionsColl = collection(db, 'users', uid, 'notes', noteId, 'versions');
   const q = query(versionsColl, orderBy('updatedAt', 'desc'));
@@ -122,6 +159,10 @@ export function subscribeToVersions(uid, noteId, callback) {
 }
 
 
+// ----------------------------------------------------
+// Purpose:
+// Permanently deletes a single note from Firestore.
+// ----------------------------------------------------
 export async function deleteNote(uid, noteId) {
   const ref = doc(db, 'users', uid, 'notes', noteId);
   const deleteResult = await deleteDoc(ref);
@@ -129,13 +170,14 @@ export async function deleteNote(uid, noteId) {
   return deleteResult;
 }
 
-/**
- * Toggle the pinned status of a note.
- * @param {string} uid
- * @param {string} noteId
- * @param {boolean} currentPinnedStatus
- * @returns {Promise<void>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Flips the boolean 'pinned' flag on a note.
+//
+// Why:
+// Separated from updateNote so we can easily toggle this status without 
+// triggering a version history save.
+// ----------------------------------------------------
 export async function togglePin(uid, noteId, currentPinnedStatus) {
   const ref = doc(db, 'users', uid, 'notes', noteId);
   return updateDoc(ref, {
@@ -144,15 +186,25 @@ export async function togglePin(uid, noteId, currentPinnedStatus) {
   });
 }
 
-/**
- * Subscribe to real-time updates on the user's notes.
- * Notes are ordered by updatedAt descending (newest first).
- * Returns the unsubscribe function — call it on logout to stop listening.
- *
- * @param {string} uid
- * @param {function} callback - Receives an array of note objects
- * @returns {function} unsubscribe
- */
+// ----------------------------------------------------
+// Purpose:
+// Establishes a real-time WebSocket connection to a user's notes collection.
+// Whenever a note is added, modified, or deleted by the user (even on 
+// another device), this listener fires.
+//
+// Why:
+// Real-time updates eliminate the need for manual refresh buttons and 
+// ensure the UI is always perfectly synced with the backend.
+//
+// Execution Flow:
+// 1. App sets up this listener on login.
+// 2. Firebase returns an initial snapshot of all notes.
+// 3. Callback fires, state updates, UI renders.
+// 4. On any subsequent change, Firebase sends a delta, callback fires again.
+//
+// Returns:
+// A function that, when called, terminates the listener.
+// ----------------------------------------------------
 export function subscribeToNotes(uid, callback) {
   const q = query(notesRef(uid), orderBy('updatedAt', 'desc'));
 
@@ -169,6 +221,10 @@ export function subscribeToNotes(uid, callback) {
 // Folder Operations
 // ─────────────────────────────────────────────
 
+// ----------------------------------------------------
+// Purpose:
+// Creates a new folder document.
+// ----------------------------------------------------
 export async function addFolder(uid, name, parentId = null) {
   const docRef = await addDoc(foldersRef(uid), {
     name: name.trim(),
@@ -179,9 +235,11 @@ export async function addFolder(uid, name, parentId = null) {
   return docRef;
 }
 
-/**
- * Delete a folder.
- */
+// ----------------------------------------------------
+// Purpose:
+// Deletes a folder document. Note: This does not cascade to notes inside it 
+// (which must be handled by the UI or Cloud Functions).
+// ----------------------------------------------------
 export async function deleteFolder(uid, folderId) {
   const ref = doc(db, 'users', uid, 'folders', folderId);
   const deleteResult = await deleteDoc(ref);
@@ -189,9 +247,10 @@ export async function deleteFolder(uid, folderId) {
   return deleteResult;
 }
 
-/**
- * Subscribe to folders.
- */
+// ----------------------------------------------------
+// Purpose:
+// Real-time listener for the user's folders.
+// ----------------------------------------------------
 export function subscribeToFolders(uid, callback) {
   const q = query(foldersRef(uid), orderBy('createdAt', 'asc'));
 

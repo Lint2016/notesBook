@@ -1,12 +1,34 @@
 /**
- * dom.js
- * Centralizes all DOM element queries.
+ * ============================================================================
+ * FILE OVERVIEW: dom.js
+ * ============================================================================
+ * Purpose:
+ * Centralizes all DOM element queries (document.getElementById) into a single 
+ * file.
+ * 
+ * Where it fits in the application:
+ * Imported by almost every other UI component and utility script. By keeping 
+ * all DOM queries here, we avoid "magic strings" scattered throughout the 
+ * codebase and ensure that if an HTML ID changes, we only need to update it here.
+ * 
+ * Dependencies:
+ * - index.html (Expects these IDs to exist in the markup)
+ * ============================================================================
  */
 
+// ----------------------------------------------------
+// Section: Views
+// Purpose: Main container elements used to toggle between the logged-out 
+// authentication screen and the logged-in application dashboard.
+// ----------------------------------------------------
 // Views
 export const authSection  = document.getElementById('auth-section');
 export const appSection   = document.getElementById('app-section');
 
+// ----------------------------------------------------
+// Section: Auth
+// Purpose: DOM elements related to the login, signup, and password reset forms.
+// ----------------------------------------------------
 // Auth
 export const tabLogin     = document.getElementById('tab-login');
 export const tabSignup    = document.getElementById('tab-signup');
@@ -22,6 +44,11 @@ export const linkForgotPassword = document.getElementById('link-forgot-password'
 export const linkBackToLogin    = document.getElementById('link-back-to-login');
 export const frontExplainerBtn  = document.getElementById('front-explainer-btn');
 
+// ----------------------------------------------------
+// Section: Dashboard
+// Purpose: Core UI elements for the main application interface (header, sidebar, 
+// search, and floating action buttons).
+// ----------------------------------------------------
 // Dashboard
 export const dynamicGreeting = document.getElementById('dynamic-greeting');
 export const greetingName    = document.getElementById('greeting-name');
@@ -44,6 +71,11 @@ export const addFolderBtn    = document.getElementById('add-folder-btn');
 export const sidebarExplainerBtn = document.getElementById('sidebar-explainer-btn');
 export const navItems        = document.querySelectorAll('.nav-item');
 
+// ----------------------------------------------------
+// Section: Modal & Editor
+// Purpose: Elements inside the note creation/editing modal, including inputs, 
+// formatting buttons, and the version history panel.
+// ----------------------------------------------------
 // Modal
 export const modalBackdrop  = document.getElementById('modal-backdrop');
 export const modalTitle     = document.getElementById('modal-title');
@@ -69,11 +101,19 @@ export const closeHistoryBtn  = document.getElementById('close-history-btn');
 export const versionList      = document.getElementById('version-list');
 export const smartSuggestions = document.getElementById('smart-suggestions');
 
+// ----------------------------------------------------
+// Section: Command Palette
+// Purpose: Elements for the keyboard-accessible quick command menu (Cmd/Ctrl + K).
+// ----------------------------------------------------
 // Command Palette
 export const paletteOverlay = document.getElementById('command-palette-overlay');
 export const paletteInput   = document.getElementById('palette-input');
 export const paletteResults = document.getElementById('palette-results');
 
+// ----------------------------------------------------
+// Section: Preview & Guide
+// Purpose: Elements for toggling Markdown preview mode and showing the app guide.
+// ----------------------------------------------------
 // Preview & Guide
 export const editTab         = document.getElementById('edit-tab');
 export const previewTab      = document.getElementById('preview-tab');
@@ -84,6 +124,11 @@ export const showGuideBtn    = document.getElementById('show-guide-btn');
 export const closeGuideBtn   = document.getElementById('close-guide-btn');
 export const gotItBtn        = document.getElementById('got-it-btn');
 
+// ----------------------------------------------------
+// Section: Globals & Modals
+// Purpose: Miscellaneous overlay elements like toast notifications, lightboxes 
+// for images, and support/video modals.
+// ----------------------------------------------------
 // Toast Container
 export const toastContainer = document.getElementById('toast-container');
 
@@ -106,3 +151,26 @@ export const supportError      = document.getElementById('support-error');
 export const videoModalBackdrop = document.getElementById('video-modal-backdrop');
 export const closeVideoBtn = document.getElementById('close-video-btn');
 export const explainerIframe = document.getElementById('explainer-iframe');
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * dom.js acts as a static registry of all interactive HTML elements.
+ * 
+ * Common mistakes developers may make:
+ * - Querying the DOM directly inside a component (e.g., using `document.querySelector` 
+ *   inside editor.js) instead of adding the element export here.
+ * - Changing an ID in index.html and forgetting to update it here, causing `null` errors.
+ * 
+ * Possible improvements:
+ * - If the app grows to have multiple pages or dynamically injected HTML, relying 
+ *   solely on static `getElementById` on boot might fail if elements don't exist yet. 
+ *   Consider a getter pattern or Shadow DOM references for dynamic components.
+ * 
+ * Performance considerations:
+ * - Caching all these elements upfront on page load is extremely fast and saves 
+ *   subsequent DOM traversal time during user interactions.
+ * ============================================================================
+ */

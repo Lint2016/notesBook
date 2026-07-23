@@ -1,6 +1,17 @@
 /**
- * components/notes-list.js
- * Handles rendering notes, the search filter logic, and note interactions.
+ * ============================================================================
+ * FILE OVERVIEW: notes-list.js
+ * ============================================================================
+ * Purpose:
+ * Renders the main grid of notes. Handles search filtering, folder filtering, 
+ * Markdown parsing, and inline interactions (like toggling checklist items directly 
+ * on the note card).
+ * 
+ * Where it fits in the application:
+ * This is the primary view for the user's data. It takes the raw `allNotes` 
+ * array from `state.js`, filters it based on the sidebar and search bar, and 
+ * outputs DOM elements to the center of the screen.
+ * ============================================================================
  */
 
 import { state } from '../state.js';
@@ -9,6 +20,11 @@ import { highlightText, escapeHtml, showToast } from '../utils/ui.js';
 import { togglePin, deleteNote, updateNote } from '../db.js';
 import { openModal } from './editor.js';
 
+// ----------------------------------------------------
+// Purpose:
+// Binds listeners for the search bar and sets up event delegation for 
+// clicks on the notes grid (specifically handling inline checklist toggling).
+// ----------------------------------------------------
 export function setupNotesList() {
   searchInput?.addEventListener('input', () => {
     searchClearBtn?.classList.toggle('visible', searchInput.value.length > 0);
@@ -56,6 +72,15 @@ export function setupNotesList() {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Core sorting and filtering engine.
+// Filters `state.allNotes` against:
+// 1. The search input (matches title or content)
+// 2. The active category filter
+// 3. The active folder/pin filter
+// Finally sorts the result (pinned first, then by date) and calls renderNotes().
+// ----------------------------------------------------
 export function applyFilters() {
   const q = searchInput?.value.toLowerCase().trim() || '';
 
@@ -86,6 +111,11 @@ export function applyFilters() {
   renderNotes(filtered);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Clears the notes grid and populates it with new note cards. Shows an 
+// empty state graphic if no notes match the filters.
+// ----------------------------------------------------
 export function renderNotes(notes) {
   notesList.innerHTML = '';
   notesCountBadge.textContent = `${notes.length} note${notes.length !== 1 ? 's' : ''}`;
@@ -108,6 +138,14 @@ export function renderNotes(notes) {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Generates the DOM element for a single note card.
+// 
+// Side effects:
+// Attaches listeners to the card for Drag & Drop (for folder moving), 
+// editing, pinning, and deleting.
+// ----------------------------------------------------
 function createNoteCard(note, index = 0) {
   const card = document.createElement('article');
   card.className = `note-card ${note.pinned ? 'pinned' : ''}`;
@@ -189,6 +227,11 @@ function createNoteCard(note, index = 0) {
   return card;
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Shows a custom confirmation dialog before actually deleting a note 
+// from Firestore.
+// ----------------------------------------------------
 function confirmDelete(noteId, noteTitle) {
   const dialog = document.createElement('div');
   dialog.className = 'confirm-dialog';
@@ -217,12 +260,24 @@ function confirmDelete(noteId, noteTitle) {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Renders pulsing placeholder cards while data is being fetched from Firestore.
+// ----------------------------------------------------
 export function renderSkeletons(count) {
   notesList.innerHTML = Array.from({ length: count })
     .map(() => `<div class="skeleton-card skeleton"></div>`)
     .join('');
 }
 
+// ----------------------------------------------------
+// Purpose:
+// A lightweight, custom markdown parser using regex. 
+// Supports: checklists, bold, italic, strikethrough, code, H1, lists, and linebreaks.
+//
+// Why:
+// Avoids bundling a heavy library like `marked.js` for simple formatting needs.
+// ----------------------------------------------------
 export function parseMarkdown(text = '', alreadyEscaped = false) {
   if (!text) return '';
   let html = alreadyEscaped ? text : escapeHtml(text);
@@ -239,6 +294,10 @@ export function parseMarkdown(text = '', alreadyEscaped = false) {
   return html;
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Formats Firestore Timestamps into a human-readable string (e.g. "12 Oct 2023, 14:30").
+// ----------------------------------------------------
 export function formatTimestamp(ts) {
   if (!ts) return 'Just now';
   const date = ts.toDate ? ts.toDate() : new Date(ts);
@@ -248,6 +307,10 @@ export function formatTimestamp(ts) {
   }).format(date);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Formats raw reminder date strings for the UI.
+// ----------------------------------------------------
 export function formatReminder(dateStr) {
   try {
     const d = new Date(dateStr);
@@ -255,6 +318,11 @@ export function formatReminder(dateStr) {
   } catch { return dateStr; }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Checks all loaded notes to see if any have a reminder set for the next minute.
+// Triggers the Browser's native Notification API if permitted.
+// ----------------------------------------------------
 export function checkReminders(notes) {
   const now = new Date();
   notes.forEach(note => {
@@ -272,3 +340,27 @@ export function checkReminders(notes) {
     }
   });
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * notes-list.js acts as the presentation layer for the notes collection, combining 
+ * filtering, sorting, and markdown rendering into a responsive grid.
+ * 
+ * Common mistakes developers may make:
+ * - Modifying the `state.allNotes` array directly instead of letting Firestore 
+ *   snapshot listeners update it.
+ * - Changing the HTML structure of the note card without updating the event 
+ *   delegation logic (e.g., `e.target.closest('.card-action-btn')`).
+ * 
+ * Possible improvements:
+ * - The custom `parseMarkdown` function is fast but limited. If complex tables 
+ *   or nested blocks are needed, replacing it with a robust library (like marked) 
+ *   is recommended.
+ * - For thousands of notes, rendering all DOM nodes at once causes lag. 
+ *   Virtualization (rendering only the cards visible on screen) would vastly 
+ *   improve performance.
+ * ============================================================================
+ */

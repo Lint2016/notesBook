@@ -1,6 +1,21 @@
 /**
- * components/command-palette.js
- * Handles the Command Palette (Ctrl+K) search and actions.
+ * ============================================================================
+ * FILE OVERVIEW: command-palette.js
+ * ============================================================================
+ * Purpose:
+ * Implements a keyboard-driven "Command Palette" (similar to Cmd+K in Slack/VS Code).
+ * Allows users to quickly search their notes or execute app actions (like creating a 
+ * new note or logging out) without touching the mouse.
+ * 
+ * Where it fits in the application:
+ * A globally accessible UI component. It listens to keyboard events on the `window` 
+ * and floats above all other UI elements when activated.
+ * 
+ * Dependencies:
+ * - dom.js (Overlay and input elements)
+ * - state.js (To access allNotes for searching)
+ * - editor.js (To open notes)
+ * ============================================================================
  */
 
 import { state } from '../state.js';
@@ -9,6 +24,12 @@ import { escapeHtml } from '../utils/ui.js';
 import { openModal } from './editor.js';
 import { toggleGuide } from './support-modal.js';
 
+// ----------------------------------------------------
+// Important Variable: APP_ACTIONS
+// Purpose: A static array of all hardcoded commands the palette can execute.
+// Why: Keeping this as a data array makes it extremely easy to add new 
+// keyboard shortcuts in the future without changing the rendering logic.
+// ----------------------------------------------------
 const APP_ACTIONS = [
   { id: 'new-note',        title: 'New Note',        desc: 'Create a blank note',           icon: 'plus' },
   { id: 'show-guide',      title: 'User Guide',       desc: 'Learn how to use NoteBook',     icon: 'help' },
@@ -18,6 +39,12 @@ const APP_ACTIONS = [
   { id: 'logout',          title: 'Logout',           desc: 'Sign out of NoteBook',          icon: 'log-out' }
 ];
 
+// ----------------------------------------------------
+// Purpose:
+// Initializes the global keyboard listener for the Cmd/Ctrl + K shortcut.
+// Also handles the internal keyboard navigation (Arrow Up/Down, Enter, Esc) 
+// when the palette is open.
+// ----------------------------------------------------
 export function setupCommandPalette() {
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -53,6 +80,14 @@ export function setupCommandPalette() {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Opens or closes the command palette overlay.
+//
+// Side effects:
+// Resets the search input and selected index, then focuses the input 
+// so the user can start typing immediately.
+// ----------------------------------------------------
 export function togglePalette(forceClose = false) {
   state.isPaletteOpen = forceClose ? false : !state.isPaletteOpen;
   paletteOverlay?.classList.toggle('hidden', !state.isPaletteOpen);
@@ -66,6 +101,15 @@ export function togglePalette(forceClose = false) {
   }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Filters the hardcoded actions and the user's notes based on the current 
+// search input, then renders the results into the DOM.
+//
+// Why:
+// Provides instant, as-you-type search results. Limits notes to the top 10 
+// to prevent the DOM from lagging on massive datasets.
+// ----------------------------------------------------
 function renderPaletteResults() {
   const query = paletteInput.value.toLowerCase().trim();
   state.paletteItems = [];
@@ -111,6 +155,10 @@ function renderPaletteResults() {
   updatePaletteSelection();
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Helper to generate the DOM element for a single search result item.
+// ----------------------------------------------------
 function createPaletteItem(item, type) {
   const el = document.createElement('div');
   el.className = 'palette-item';
@@ -132,6 +180,11 @@ function createPaletteItem(item, type) {
   return el;
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Visually highlights the currently selected item in the palette based on 
+// the user's arrow key navigation, and scrolls it into view.
+// ----------------------------------------------------
 function updatePaletteSelection() {
   const elements = paletteResults.querySelectorAll('.palette-item');
   elements.forEach((el, i) => {
@@ -140,6 +193,16 @@ function updatePaletteSelection() {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Executes the logic for a chosen command or note.
+//
+// Execution Flow:
+// 1. Closes the palette.
+// 2. Checks the item type.
+// 3. If action -> run a switch statement to perform the hardcoded action.
+// 4. If note -> call openModal() to edit the note.
+// ----------------------------------------------------
 function executePaletteItem(item) {
   togglePalette(true);
 
@@ -163,6 +226,10 @@ function executePaletteItem(item) {
   }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Returns raw SVG strings for the different action icons.
+// ----------------------------------------------------
 function getActionIcon(iconName) {
   const icons = {
     plus:     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
@@ -174,3 +241,28 @@ function getActionIcon(iconName) {
   };
   return icons[iconName] || '';
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * command-palette.js provides a power-user feature that unifies search and 
+ * navigation into a single, keyboard-friendly interface.
+ * 
+ * Common mistakes developers may make:
+ * - Adding new `APP_ACTIONS` but forgetting to map their logic in the 
+ *   `executePaletteItem` switch statement.
+ * 
+ * Possible improvements:
+ * - Implement fuzzy searching (using a library like Fuse.js) instead of basic 
+ *   `.includes()` for better typo tolerance.
+ * - Cache the rendered DOM nodes for `APP_ACTIONS` so we don't recreate them 
+ *   on every single keystroke.
+ * 
+ * Performance considerations:
+ * - We currently filter `state.allNotes` synchronously on every keystroke. 
+ *   If a user has 10,000+ notes, this could cause input lag. Implementing a 
+ *   debounce mechanism on the `input` event would optimize this.
+ * ============================================================================
+ */

@@ -1,6 +1,22 @@
 /**
- * components/editor.js
- * Centralizes the note editor modal, attachments, history, and voice input.
+ * ============================================================================
+ * FILE OVERVIEW: editor.js
+ * ============================================================================
+ * Purpose:
+ * Manages the note creation and editing experience. This includes the modal UI, 
+ * Markdown preview toggling, Grammar checks, attachments (uploading to Firebase 
+ * Storage), voice dictation (Web Speech API), and note version history.
+ * 
+ * Where it fits in the application:
+ * The heaviest UI component. Triggered by the Floating Action Button (new note) 
+ * or by clicking an existing note in the notes-list.js.
+ * 
+ * Dependencies:
+ * - dom.js (Modal inputs and buttons)
+ * - db.js (Saving/Updating notes, loading version history)
+ * - state.js (Tracking which note is currently being edited)
+ * - Firebase Storage (For file attachments)
+ * ============================================================================
  */
 
 import { state } from '../state.js';
@@ -18,8 +34,20 @@ import { parseMarkdown } from './notes-list.js';
 import { storage } from '../firebase-config.js';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
+// ----------------------------------------------------
+// Important Variable: originalNoteContent
+// Purpose: Stores the text of the note *before* voice dictation starts.
+// Why: The Web Speech API is fickle. If it restarts mid-sentence, it might 
+// overwrite everything. Appending new speech results to this baseline string 
+// ensures we never lose the user's manual typing.
+// ----------------------------------------------------
 let originalNoteContent = '';
 
+// ----------------------------------------------------
+// Purpose:
+// Binds all event listeners for the editor modal (save, cancel, tabs, 
+// attachments, voice, grammar).
+// ----------------------------------------------------
 export function setupEditor() {
   fabBtn?.addEventListener('click', () => openModal('new'));
   closeModalBtn?.addEventListener('click', closeModal);
@@ -115,6 +143,14 @@ export function setupEditor() {
   micBtn?.addEventListener('click', toggleListening);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Opens the editor modal and populates it with data if editing an existing note.
+//
+// Expected Inputs:
+// - mode: 'new' or 'edit'
+// - note: The note object from Firestore (null if mode is 'new')
+// ----------------------------------------------------
 export function openModal(mode, note = null) {
   state.editingNoteId = mode === 'edit' ? note.id : null;
   if (modalTitle) modalTitle.textContent = mode === 'edit' ? 'Edit Note' : 'New Note';
@@ -144,6 +180,13 @@ export function openModal(mode, note = null) {
   setTimeout(() => noteTitle?.focus(), 120);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Cleans up the modal state and hides it.
+//
+// Side effects:
+// Resets input values, stops voice dictation, unsubscribes from version history.
+// ----------------------------------------------------
 function closeModal() {
   modalBackdrop?.classList.add('hidden');
   state.editingNoteId = null;
@@ -170,6 +213,10 @@ function closeModal() {
   if (saveNoteBtn) { saveNoteBtn.disabled = false; saveNoteBtn.textContent = 'Save Note'; }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Toggles between the raw markdown textarea and the rendered HTML preview.
+// ----------------------------------------------------
 function switchEditorTab(tab) {
   const isEdit = tab === 'edit';
   editTab?.classList.toggle('active', isEdit);
@@ -181,6 +228,14 @@ function switchEditorTab(tab) {
   }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Uses simple regex patterns to catch common grammatical errors (like its vs it's).
+//
+// Why:
+// A lightweight, offline grammar check that provides immediate feedback without 
+// needing an external API.
+// ----------------------------------------------------
 function reviewGrammar() {
   const text = noteContent?.value || '';
   const patterns = [
@@ -200,6 +255,14 @@ function reviewGrammar() {
   if (!found) showToast('No common errors found! ✓');
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Uploads a file to Firebase Storage and links it to the current note.
+//
+// Async Operations:
+// - uploadBytesResumable (Firebase Storage)
+// - getDownloadURL (Firebase Storage)
+// ----------------------------------------------------
 async function handleAttachmentUpload(file) {
   if (!state.currentUser) return;
 
@@ -246,6 +309,10 @@ async function handleAttachmentUpload(file) {
   );
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Generates the DOM element for a media attachment (or a loading placeholder).
+// ----------------------------------------------------
 function createMediaPlaceholder(name, isUploading) {
   const el = document.createElement('div');
   el.className = `media-item ${isUploading ? 'uploading' : ''}`;
@@ -261,6 +328,10 @@ function createMediaPlaceholder(name, isUploading) {
   return el;
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Renders the list of uploaded attachments below the note content.
+// ----------------------------------------------------
 function renderMediaTray() {
   if (!mediaTray) return;
   mediaTray.innerHTML = '';
@@ -299,6 +370,10 @@ function renderMediaTray() {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Deletes a file from Firebase Storage and removes it from the note's state.
+// ----------------------------------------------------
 async function deleteAttachment(attachment) {
   if (!confirm('Remove this attachment?')) return;
   try {
@@ -312,6 +387,10 @@ async function deleteAttachment(attachment) {
   showToast('Attachment removed.', 'success');
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Opens an image attachment in a full-screen lightbox overlay.
+// ----------------------------------------------------
 function openLightbox(att) {
   if (!att.type.startsWith('image/')) { window.open(att.url, '_blank'); return; }
   if (lightboxImg) lightboxImg.src = att.url;
@@ -320,12 +399,21 @@ function openLightbox(att) {
   lightboxOverlay?.setAttribute('aria-hidden', 'false');
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Closes the image lightbox.
+// ----------------------------------------------------
 function closeLightbox() {
   lightboxOverlay?.classList.add('hidden');
   lightboxOverlay?.setAttribute('aria-hidden', 'true');
   if (lightboxImg) lightboxImg.src = '';
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Analyzes the note's title as the user types and suggests moving it to 
+// a specific folder based on keywords (e.g., "meeting" -> "Work").
+// ----------------------------------------------------
 function updateSmartSuggestions() {
   const title = noteTitle?.value.toLowerCase() || '';
   smartSuggestions?.classList.add('hidden');
@@ -355,6 +443,10 @@ function updateSmartSuggestions() {
   }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Subscribes to the Firestore version history subcollection for the active note.
+// ----------------------------------------------------
 function loadNoteHistory() {
   if (!state.editingNoteId || !state.currentUser) {
     if (versionList) versionList.innerHTML = '<div class="palette-group-title">No history for new notes</div>';
@@ -365,6 +457,10 @@ function loadNoteHistory() {
   state.unsubscribeVersions = subscribeToVersions(state.currentUser.uid, state.editingNoteId, renderVersionList);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Renders the list of previous note snapshots into the history sidebar.
+// ----------------------------------------------------
 function renderVersionList(versions) {
   if (!versionList) return;
   versionList.innerHTML = '';
@@ -391,6 +487,13 @@ function renderVersionList(versions) {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Initializes the browser's native Web Speech API for voice-to-text dictation.
+//
+// Why:
+// Built-in accessibility and convenience feature.
+// ----------------------------------------------------
 function initVoiceCapture() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) { micBtn?.classList.add('hidden'); return; }
@@ -446,12 +549,20 @@ function initVoiceCapture() {
   };
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Toggles the microphone on and off.
+// ----------------------------------------------------
 function toggleListening() {
   if (!state.recognition) initVoiceCapture();
   if (!state.recognition) return;
   state.isListening ? stopListening() : startListening();
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Starts the speech recognition engine.
+// ----------------------------------------------------
 function startListening() {
   try {
     originalNoteContent = noteContent?.value || '';
@@ -461,6 +572,32 @@ function startListening() {
   }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Stops the speech recognition engine.
+// ----------------------------------------------------
 function stopListening() {
   state.recognition?.stop();
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * editor.js is the most complex UI component, integrating standard form inputs 
+ * with advanced features like Firebase Storage uploads, Web Speech API, and 
+ * real-time version history.
+ * 
+ * Common mistakes developers may make:
+ * - Forgetting that `state.editingNoteId` might be null (when creating a new note) 
+ *   and trying to save attachments or history to a non-existent document path.
+ * 
+ * Possible improvements:
+ * - The grammar checker is very basic (regex based). Integrating a real NLP 
+ *   API (like LanguageTool) would make it actually useful.
+ * - Auto-save functionality. Currently, if the user closes the modal without 
+ *   clicking save, their work is lost. Implementing a debounce auto-save to 
+ *   IndexedDB or Firestore would prevent data loss.
+ * ============================================================================
+ */

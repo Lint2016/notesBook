@@ -1,12 +1,19 @@
 /**
- * firebase-config.js
- *
- * Initializes Firebase using the modern SDK v10 modular API.
- * Offline persistence uses initializeFirestore with persistentLocalCache —
- * the recommended v10+ approach (replaces the deprecated enableIndexedDbPersistence).
- *
- * persistentMultipleTabManager() allows persistence across multiple open tabs,
- * whereas the old API threw a 'failed-precondition' error in that case.
+ * ============================================================================
+ * FILE OVERVIEW: firebase-config.js
+ * ============================================================================
+ * Purpose:
+ * Initializes the Firebase application using the v10 modular SDK.
+ * Configures all required Firebase services: Auth, Firestore, Storage, Analytics.
+ * 
+ * Where it fits in the application:
+ * This is the foundational infrastructure file. Every other file that interacts 
+ * with the database, authentication, or storage must import their respective 
+ * instances from here.
+ * 
+ * Dependencies:
+ * - Firebase SDK (app, auth, firestore, storage, analytics)
+ * ============================================================================
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -53,11 +60,39 @@ export const db = initializeFirestore(app, {
 // Initialize Firebase Analytics
 export const analytics = getAnalytics(app);
 
-/**
- * Helper to log custom events to Firebase Analytics.
- * @param {string} eventName 
- * @param {object} params 
- */
+// ----------------------------------------------------
+// Purpose:
+// Helper to log custom events to Firebase Analytics.
+//
+// Why:
+// Centralizes the analytics logging so we can easily swap analytics providers 
+// or disable tracking in development mode without hunting down every logEvent call.
+// ----------------------------------------------------
 export function logAnalyticsEvent(eventName, params = {}) {
   logEvent(analytics, eventName, params);
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * firebase-config.js successfully initializes the Firebase backend services, 
+ * specifically enabling multi-tab offline persistence for Firestore.
+ * 
+ * Common mistakes developers may make:
+ * - Hardcoding new Firebase credentials here for different environments (e.g. dev/prod) 
+ *   instead of using environment variables or a build process.
+ * - Importing the entire 'firebase' compat library instead of the specific modular 
+ *   functions, which severely inflates the JS bundle size.
+ * 
+ * Possible improvements:
+ * - Implement logic to detect 'localhost' and connect to the Firebase Local Emulator 
+ *   Suite for safe local development.
+ * 
+ * Security considerations:
+ * - While the apiKey is exposed here (which is standard and required for Firebase Web), 
+ *   it means security strictly relies on Firestore Security Rules, not obscuring this key. 
+ *   Ensure the apiKey is restricted by domain in the Google Cloud Console.
+ * ============================================================================
+ */

@@ -1,6 +1,14 @@
 /**
- * components/support-modal.js
- * Handles User Guide and Support form modals.
+ * ============================================================================
+ * FILE OVERVIEW: support-modal.js
+ * ============================================================================
+ * Purpose:
+ * Manages all non-core app modals: The static User Guide, the Video Explainer 
+ * iframe, and the Contact Support form.
+ * 
+ * Where it fits in the application:
+ * Provides user assistance. Triggered from the sidebar or the command palette.
+ * ============================================================================
  */
 
 import { state } from '../state.js';
@@ -13,6 +21,14 @@ import {
 import { logAnalyticsEvent } from '../firebase-config.js';
 import { showToast } from '../utils/ui.js';
 
+// ----------------------------------------------------
+// Purpose:
+// Initializes event listeners for the Guide, Support, and Video modals. 
+// Also contains the logic to auto-show the guide once per browser for new users.
+//
+// Async Operations:
+// - await fetch() (Sends form data to Formspree)
+// ----------------------------------------------------
 export function setupSupportModals() {
   // Guide Modal
   showGuideBtn.addEventListener('click', () => toggleGuide(true));
@@ -120,10 +136,21 @@ export function setupSupportModals() {
   }
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Opens or closes the static text User Guide modal.
+// ----------------------------------------------------
 export function toggleGuide(isOpen) {
   guideModal.classList.toggle('hidden', !isOpen);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Opens or closes the Contact Support modal.
+//
+// Side effects:
+// On open, resets the form and pre-fills the user's display name if available.
+// ----------------------------------------------------
 function toggleSupportModal(show = true) {
   supportModal.classList.toggle('hidden', !show);
   if (show) {
@@ -136,3 +163,24 @@ function toggleSupportModal(show = true) {
     setTimeout(() => document.getElementById('support-name').focus(), 100);
   }
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * support-modal.js isolates help-related UI components from the core note-taking 
+ * logic.
+ * 
+ * Common mistakes developers may make:
+ * - Changing the Formspree endpoint in the `fetch` call without updating the 
+ *   corresponding backend settings on Formspree.io.
+ * 
+ * Possible improvements:
+ * - The video modal currently hardcodes a YouTube URL. This could be made 
+ *   dynamic if multiple tutorials are added.
+ * - The `localStorage` check for `guideShown` is browser-specific. Moving this 
+ *   flag to the user's Firestore profile would ensure they only see it once 
+ *   across all their devices.
+ * ============================================================================
+ */

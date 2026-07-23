@@ -1,11 +1,23 @@
 /**
- * auth.js
- * Handles Firebase Authentication:
- * - Email/Password Sign-Up (with username stored to Firestore)
- * - Email/Password Sign-In
- * - Google OAuth Sign-In / Sign-Up
- * - Sign-Out
- * - onAuthStateChanged listener
+ * ============================================================================
+ * FILE OVERVIEW: auth.js
+ * ============================================================================
+ * Purpose:
+ * Centralizes all Firebase Authentication logic and encapsulates the SDK calls.
+ * 
+ * Where it fits in the application:
+ * Acts as the data layer for authentication. Called by UI components (like 
+ * auth-ui.js) when users interact with login/signup forms, and by app.js for 
+ * global session management.
+ * 
+ * Dependencies:
+ * - firebase-config.js (Provides initialized auth and db instances)
+ * - Firebase Auth SDK (Handles actual authentication)
+ * - Firebase Firestore SDK (Handles storing user profiles)
+ * 
+ * Data Flow:
+ * User Action (UI) -> auth.js (Function) -> Firebase SDK -> Firestore (Profile) -> Return Result to UI
+ * ============================================================================
  */
 
 import { auth, db, logAnalyticsEvent } from './firebase-config.js';
@@ -34,17 +46,25 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-/**
- * Sign up a new user.
- * - Creates an auth account
- * - Updates the Firebase Auth displayName
- * - Stores user profile (username, email) in Firestore under /users/{uid}
- *
- * @param {string} username - Display name chosen by the user
- * @param {string} email
- * @param {string} password
- * @returns {Promise<UserCredential>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Registers a new user with an email and password, sets their display name, 
+// and creates a profile document in Firestore.
+//
+// Why:
+// Firebase Auth only stores basic credentials. We need a Firestore document 
+// to store app-specific user settings, stats, and a guaranteed username.
+//
+// Expected Inputs:
+// - username: User's chosen display name.
+// - email: Valid email address.
+// - password: Password (validated by Firebase).
+//
+// Async Operations:
+// - createUserWithEmailAndPassword (Firebase Auth)
+// - updateProfile (Firebase Auth)
+// - setDoc (Firestore writes to /users/{uid})
+// ----------------------------------------------------
 export async function signUp(username, email, password) {
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const user = credential.user;
@@ -64,42 +84,62 @@ export async function signUp(username, email, password) {
   return credential;
 }
 
-/**
- * Sign in an existing user.
- * @param {string} email
- * @param {string} password
- * @returns {Promise<UserCredential>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Authenticates an existing user via email and password.
+//
+// Why:
+// Standard email login flow.
+//
+// Async Operations:
+// - signInWithEmailAndPassword (Firebase Auth)
+// ----------------------------------------------------
 export async function signIn(email, password) {
   const credential = await signInWithEmailAndPassword(auth, email, password);
   logAnalyticsEvent('login', { method: 'email', uid: credential.user.uid });
   return credential;
 }
 
-/**
- * Send a password reset email.
- * @param {string} email
- * @returns {Promise<void>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Sends a password reset link to the user's email.
+//
+// Why:
+// Essential recovery mechanism if a user forgets their password.
+// ----------------------------------------------------
 export async function resetPassword(email) {
   return sendPasswordResetEmail(auth, email);
 }
 
-/**
- * Sign out the current user.
- * @returns {Promise<void>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Terminates the current user's session.
+//
+// Async Operations:
+// - signOut (Firebase Auth)
+// ----------------------------------------------------
 export async function logOut() {
   logAnalyticsEvent('logout');
   return signOut(auth);
 }
 
-/**
- * Sign in (or sign up) using Google OAuth via a popup.
- * - On first login: creates a Firestore user profile automatically.
- * - On subsequent logins: leaves the existing profile untouched.
- * @returns {Promise<UserCredential>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Handles Google OAuth sign-in via a popup window. Creates a Firestore 
+// profile if this is the user's first time logging in.
+//
+// Why:
+// Lowers the barrier to entry by allowing users to skip manual registration.
+//
+// Expected outputs:
+// Returns an object containing the UserCredential and a boolean (isNewUser)
+// so the UI knows if it needs to prompt for a backup password.
+//
+// Async Operations:
+// - signInWithPopup (Firebase Auth)
+// - getDoc (Checks if Firestore profile exists)
+// - setDoc (Creates Firestore profile if missing)
+// ----------------------------------------------------
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
@@ -128,33 +168,42 @@ export async function signInWithGoogle() {
   return { credential, isNewUser };
 }
 
-/**
- * Link email/password to an existing Google account.
- * Allows the user to sign in with email + password in addition to Google.
- * @param {User} user
- * @param {string} password
- */
+// ----------------------------------------------------
+// Purpose:
+// Links an email and password to an existing Google-authenticated account.
+//
+// Why:
+// If a user signs up with Google, they might later want to login with a 
+// standard password on devices without Google accounts.
+// ----------------------------------------------------
 export async function linkEmailPassword(user, password) {
   const cred = EmailAuthProvider.credential(user.email, password);
   return linkWithCredential(user, cred);
 }
 
-/**
- * Delete the user's account — full GDPR-compliant wipe.
- *
- * Order of operations (critical):
- *   1. Re-authenticate (Firebase requirement for sensitive operations)
- *   2. Batch-delete all notes + folders subcollections
- *   3. Delete the /users/{uid} profile document
- *   4. Delete the Firebase Auth account
- *
- * Deleting data BEFORE the auth account is essential — once the auth
- * account is gone, Firestore Security Rules deny all further writes.
- *
- * @param {User}   user     - The currently signed-in Firebase user object
- * @param {string} password - Required only for email/password users; null for Google users
- * @returns {Promise<void>}
- */
+// ----------------------------------------------------
+// Purpose:
+// Permanently deletes the user's account and all associated data.
+//
+// Why:
+// Required for GDPR compliance and user privacy.
+//
+// Execution Flow:
+// 1. Prompt user to re-authenticate (Firebase requires recent login for deletion).
+// 2. Fetch all user notes and folders from Firestore.
+// 3. Batch delete all documents to prevent orphaned data.
+// 4. Delete the Firestore user profile.
+// 5. Delete the Firebase Auth account.
+//
+// Important Variables:
+// - batch: A Firestore writeBatch used to delete everything in a single atomic transaction.
+//
+// Async Operations:
+// - reauthenticateWithPopup/Credential (Auth)
+// - getDocs (Firestore read collections)
+// - batch.commit() (Firestore atomic write)
+// - deleteUser (Auth)
+// ----------------------------------------------------
 export async function deleteAccount(user, password = null) {
   // ── Step 1: Re-authenticate ──────────────────────────────────────
   const isGoogle = user.providerData.some(p => p.providerId === 'google.com');
@@ -185,11 +234,36 @@ export async function deleteAccount(user, password = null) {
   await deleteUser(user);
 }
 
-/**
- * Listen to authentication state changes.
- * Calls the provided callback with the user object (or null).
- * @param {function} callback - Receives (user | null)
- */
+// ----------------------------------------------------
+// Purpose:
+// Wrapper around Firebase's onAuthStateChanged.
+// ----------------------------------------------------
 export function onAuthChange(callback) {
   onAuthStateChanged(auth, callback);
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * auth.js abstracts the complexities of Firebase Authentication and couples it 
+ * with our Firestore user profile management.
+ * 
+ * Common mistakes developers may make:
+ * - Calling Firebase Auth functions directly in UI components instead of routing 
+ *   them through this file.
+ * - Changing the deleteAccount order of operations. Deleting the Auth account 
+ *   before Firestore data will result in "Permission Denied" errors and orphaned data.
+ * 
+ * Possible improvements:
+ * - Add support for Apple/GitHub OAuth providers.
+ * - Centralize error mapping (e.g., converting 'auth/wrong-password' to user-friendly text) 
+ *   within this file rather than in the UI components.
+ * 
+ * Security considerations:
+ * - The deleteAccount function relies on the client correctly fetching and deleting 
+ *   their subcollections. A more secure, enterprise-grade approach would be to trigger a 
+ *   Firebase Cloud Function on account deletion to securely wipe data on the backend.
+ * ============================================================================
+ */

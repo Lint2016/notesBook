@@ -1,6 +1,16 @@
 /**
- * components/sidebar.js
- * Handles Sidebar toggle, Folders rendering, and Category clicks.
+ * ============================================================================
+ * FILE OVERVIEW: sidebar.js
+ * ============================================================================
+ * Purpose:
+ * Manages the left-hand navigation sidebar. This includes the mobile toggle, 
+ * rendering dynamic folders, handling Drag and Drop events (for moving notes 
+ * into folders), and category filtering.
+ * 
+ * Where it fits in the application:
+ * Acts as the primary state manipulator for what is currently visible in the 
+ * notes grid.
+ * ============================================================================
  */
 
 import { state } from '../state.js';
@@ -12,6 +22,11 @@ import { escapeHtml, showToast } from '../utils/ui.js';
 import { addFolder, deleteFolder, updateNote } from '../db.js';
 import { applyFilters } from './notes-list.js';
 
+// ----------------------------------------------------
+// Purpose:
+// Binds static UI elements in the sidebar (mobile toggle, static nav items, 
+// add folder button, and category chips).
+// ----------------------------------------------------
 export function setupSidebar() {
   sidebarToggle?.addEventListener('click', () => {
     sidebar.classList.toggle('open');
@@ -59,6 +74,15 @@ export function setupSidebar() {
   });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Renders the user's custom folders into the sidebar and updates the 
+// `<select>` dropdown in the editor modal.
+// 
+// Side effects:
+// Sets up Drag and Drop listeners on the new folder elements so users 
+// can drag note cards from the grid and drop them onto a folder to move them.
+// ----------------------------------------------------
 export function renderFolders(folders) {
   folderList.innerHTML = folders.map(f => `
     <li class="folder-item nav-item" data-nav="${f.id}">
@@ -127,3 +151,25 @@ export function renderFolders(folders) {
     folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
   noteFolder.value = currentVal;
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * sidebar.js handles the taxonomy and organization of notes, updating the 
+ * global state (`state.currentFolderId`, `state.currentCategory`) and re-triggering 
+ * the note list renderer.
+ * 
+ * Common mistakes developers may make:
+ * - Forgetting to close the sidebar on mobile after a user clicks a folder 
+ *   (handled by the `window.innerWidth < 1024` checks).
+ * - Not updating the `noteFolder` dropdown in the editor when `renderFolders` runs.
+ * 
+ * Possible improvements:
+ * - Folders are currently flat. If nested folders are requested, this logic 
+ *   will need to be rewritten into a recursive tree renderer.
+ * - The `prompt` for adding folders is synchronous and native. Replacing it 
+ *   with a custom HTML modal would improve UX.
+ * ============================================================================
+ */

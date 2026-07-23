@@ -1,6 +1,20 @@
 /**
- * components/auth-ui.js
- * Handles all authentication form UI logic.
+ * ============================================================================
+ * FILE OVERVIEW: auth-ui.js
+ * ============================================================================
+ * Purpose:
+ * Binds DOM events and manages the UI state for all authentication flows 
+ * (Login, Signup, Forgot Password, Google Auth, Delete Account).
+ * 
+ * Where it fits in the application:
+ * Acts as the controller connecting the static HTML forms (dom.js) to the 
+ * underlying Firebase authentication logic (auth.js).
+ * 
+ * Dependencies:
+ * - dom.js (Form elements and buttons)
+ * - auth.js (Firebase Auth functions)
+ * - ui.js (Toast notifications and loading state helpers)
+ * ============================================================================
  */
 
 import { signUp, signIn, resetPassword, signInWithGoogle, deleteAccount, linkEmailPassword } from '../auth.js';
@@ -12,6 +26,20 @@ import {
 import { showFormError, setLoading, escapeHtml, showToast } from '../utils/ui.js';
 import { state } from '../state.js';
 
+// ----------------------------------------------------
+// Purpose:
+// Attaches event listeners to the login, signup, and forgot password forms.
+// Also handles the Google OAuth button clicks.
+//
+// Why:
+// Needs to run once on app initialization to make the forms interactive.
+//
+// Async Operations:
+// - await resetPassword(), signUp(), signIn(), signInWithGoogle() (via auth.js)
+//
+// Side effects:
+// Modifies the DOM to show loading states and error messages.
+// ----------------------------------------------------
 export function setupAuthUI() {
   tabLogin?.addEventListener('click', () => switchTab('login'));
   tabSignup?.addEventListener('click', () => switchTab('signup'));
@@ -110,6 +138,18 @@ export function setupAuthUI() {
     });
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Toggles the visibility of the different authentication forms (login, 
+// signup, forgot password) and updates the active tab styling.
+//
+// Why:
+// We use a Single Page App (SPA) approach for the auth screen rather than 
+// separate HTML pages to keep transitions instant.
+//
+// Side effects:
+// Resets forms and clears previous error messages when switching views.
+// ----------------------------------------------------
 export function switchTab(tab) {
   const isLogin  = tab === 'login';
   const isSignup = tab === 'signup';
@@ -147,6 +187,22 @@ export function switchTab(tab) {
   document.querySelector('.auth-tabs')?.classList.toggle('hidden', isForgot);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Dynamically creates and injects a modal into the DOM to handle the 
+// high-friction "Delete Account" flow.
+//
+// Why:
+// Account deletion is destructive. We use a custom modal requiring the 
+// user to type "DELETE" and re-enter their password (for email users) 
+// to prevent accidental clicks.
+//
+// Execution Flow:
+// 1. Generate modal HTML and append to body.
+// 2. Attach validation listeners (enable button only if "DELETE" is typed).
+// 3. On submit, verify password and call deleteAccount() in auth.js.
+// 4. On success, set a session flag and let onAuthStateChanged handle logout.
+// ----------------------------------------------------
 export function openDeleteAccountModal() {
   const currentUser = state.currentUser;
   const isGoogle = currentUser?.providerData?.some(p => p.providerId === 'google.com');
@@ -258,6 +314,20 @@ export function openDeleteAccountModal() {
   setTimeout(() => (passwordInput || confirmInput)?.focus(), 100);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Prompts users who signed up with Google to optionally set a password.
+//
+// Why:
+// Improves user retention by allowing them to sign in on devices where 
+// they might not have their Google account synced.
+//
+// Execution Flow:
+// 1. Generate modal HTML and append to body.
+// 2. Attach listeners for password visibility toggles.
+// 3. On submit, validate password length and match.
+// 4. Call linkEmailPassword() in auth.js.
+// ----------------------------------------------------
 export function showSetPasswordPrompt(user) {
   const overlay = document.createElement('div');
   overlay.className = 'set-password-overlay';
@@ -382,6 +452,15 @@ export function showSetPasswordPrompt(user) {
   setTimeout(() => pwInput?.focus(), 100);
 }
 
+// ----------------------------------------------------
+// Purpose:
+// Translates cryptic Firebase Auth error codes into human-readable 
+// messages for the UI.
+//
+// Why:
+// Users don't understand "auth/user-not-found". We need to give them 
+// actionable feedback.
+// ----------------------------------------------------
 export function friendlyAuthError(code) {
   const map = {
     'auth/email-already-in-use'     : 'This email is already registered.',
@@ -398,3 +477,29 @@ export function friendlyAuthError(code) {
   };
   return map[code] || `An unexpected error occurred. (${code})`;
 }
+
+/**
+ * ============================================================================
+ * END OF FILE SUMMARY
+ * ============================================================================
+ * Summary:
+ * auth-ui.js manages the entire user experience surrounding authentication, 
+ * keeping the DOM manipulation separate from the core Firebase logic.
+ * 
+ * Common mistakes developers may make:
+ * - Adding Firebase SDK logic directly into this file instead of routing it 
+ *   through `auth.js`.
+ * - Not clearing intervals or removing the dynamically injected modals from 
+ *   the DOM after use, leading to memory leaks or duplicate IDs.
+ * 
+ * Possible improvements:
+ * - The modals (`openDeleteAccountModal`, `showSetPasswordPrompt`) are currently 
+ *   injected via `innerHTML`. Moving these to static HTML templates in index.html 
+ *   or using a component framework would be cleaner and more secure (prevents XSS).
+ * 
+ * Security considerations:
+ * - When injecting HTML via template strings, ensure no user-provided data is 
+ *   rendered unescaped to prevent Cross-Site Scripting (XSS). We use `escapeHtml()` 
+ *   for the user's email to mitigate this.
+ * ============================================================================
+ */
