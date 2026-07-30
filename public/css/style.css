@@ -913,6 +913,58 @@ body::before {
   transition: var(--transition);
 }
 
+/* ── Language Selector ──────────────────────────────────────── */
+.lang-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 6px 30px 6px 10px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-xs);
+  background: var(--clr-surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7a9a' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  color: var(--clr-text-muted);
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  outline: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.lang-select:hover {
+  border-color: var(--clr-accent);
+  color: var(--clr-text);
+  background-color: var(--clr-surface-hover);
+  box-shadow: 0 0 0 3px var(--clr-accent-glow);
+}
+
+.lang-select:focus {
+  border-color: var(--clr-accent);
+  color: var(--clr-text);
+  box-shadow: 0 0 0 3px var(--clr-accent-glow);
+}
+
+.lang-select option {
+  background: #1a1a2e;
+  color: var(--clr-text);
+  font-size: 0.85rem;
+}
+
+/* Auth-specific: center it beneath the brand heading */
+.auth-lang-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.auth-lang-wrap .lang-select {
+  font-size: 0.78rem;
+  padding: 5px 28px 5px 10px;
+}
+
 /* Delete Account Icon Button (Header) */
 .btn-delete-account {
   display: flex;

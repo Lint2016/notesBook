@@ -52,11 +52,13 @@
             </svg>
             <span data-i18n="app.watchExplainer">Watch Explainer</span>
           </button>
-          <select id="lang-select-auth" class="lang-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color, #ccc); background: var(--bg-card, #fff); color: var(--text-color, #333); font-size: 0.9rem; cursor: pointer;" aria-label="Select Language">
-            <option value="en">🇺🇸 English</option>
-            <option value="fr">🇫🇷 Français</option>
-            <option value="es">🇪🇸 Español</option>
-          </select>
+          <div class="auth-lang-wrap">
+            <select id="lang-select-auth" class="lang-select" aria-label="Select Language">
+              <option value="en">🇺🇸 English</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="es">🇪🇸 Español</option>
+            </select>
+          </div>
         </div>
       </header>
 
@@ -261,7 +263,7 @@
         </svg>
       </button>
 
-      <select id="lang-select-header" class="lang-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color, #ccc); background: var(--bg-card, #fff); color: var(--text-color, #333); font-size: 0.85rem; cursor: pointer;" aria-label="Select Language">
+      <select id="lang-select-header" class="lang-select" aria-label="Select Language">
         <option value="en">🇺🇸 EN</option>
         <option value="fr">🇫🇷 FR</option>
         <option value="es">🇪🇸 ES</option>
