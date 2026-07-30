@@ -33,17 +33,19 @@
 
 import { auth } from './firebase-config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { subscribeToNotes, subscribeToFolders } from './db.js';
+import { subscribeToNotes, subscribeToFolders, saveUserLanguagePreference, getUserLanguagePreference } from './db.js';
 
 // State and DOM
 import { state } from './state.js';
 import { 
   authSection, appSection, greetingName, dynamicGreeting, 
-  logoutBtn, deleteAccountBtn, installBtn
+  logoutBtn, deleteAccountBtn, installBtn,
+  langSelectAuth, langSelectHeader
 } from './dom.js';
 
-// UI Utils
+// UI Utils & i18n
 import { showToast, getDynamicGreeting, escapeHtml } from './utils/ui.js';
+import { setLanguage, applyLanguageUI } from './utils/i18n.js';
 
 // Components
 import { setupAuthUI, switchTab, openDeleteAccountModal, showSetPasswordPrompt } from './components/auth-ui.js';
@@ -59,16 +61,7 @@ import { logOut } from './auth.js';
 // ----------------------------------------------------
 // Purpose:
 // Initializes all major UI components and sets up global 
-// event listeners (PWA install, global logout/delete account).
-//
-// Why:
-// We need a centralized place to bootstrap the application 
-// ensuring all DOM elements and event handlers are ready 
-// before user interaction.
-//
-// Side effects:
-// Attaches event listeners to the window and global buttons.
-// Modifies the current view by calling switchTab('login').
+// event listeners (PWA install, global logout/delete account, language selection).
 // ----------------------------------------------------
 function initApp() {
   setupAuthUI();
@@ -77,6 +70,20 @@ function initApp() {
   setupEditor();
   setupCommandPalette();
   setupSupportModals();
+
+  // Language Selectors Handler
+  [langSelectAuth, langSelectHeader].forEach(select => {
+    select?.addEventListener('change', async (e) => {
+      const selectedLang = e.target.value;
+      setLanguage(selectedLang);
+      if (state.currentUser) {
+        await saveUserLanguagePreference(state.currentUser.uid, selectedLang);
+      }
+    });
+  });
+
+  // Apply initial i18n state to UI
+  applyLanguageUI();
 
   // PWA Install Prompt
   let deferredPrompt;
@@ -117,23 +124,6 @@ function initApp() {
 // ----------------------------------------------------
 // Purpose:
 // Observes changes to the user's sign-in state (login/logout/session restore).
-//
-// Why:
-// Firebase handles auth state asynchronously. This observer 
-// acts as the single source of truth for transitioning the app
-// between the logged-out state (auth UI) and logged-in state (app UI).
-//
-// Expected inputs:
-// `user` object from Firebase (null if logged out).
-//
-// Side effects:
-// Modifies `state.currentUser`, toggles CSS classes to show/hide 
-// main application sections, triggers database subscriptions, 
-// and triggers UI updates.
-//
-// Async Operations:
-// - logOut() (if account was marked deleted)
-// - subscribeToFolders() and subscribeToNotes() (Firestore listeners)
 // ----------------------------------------------------
 onAuthStateChanged(auth, async (user) => {
   if (user) {
@@ -143,6 +133,15 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     state.currentUser = user;
+
+    // Load saved user language preference from Firestore if present
+    const savedLang = await getUserLanguagePreference(user.uid);
+    if (savedLang) {
+      setLanguage(savedLang);
+    } else {
+      applyLanguageUI();
+    }
+
     authSection.classList.add('hidden');
     appSection.classList.remove('hidden');
     appSection.classList.add('fade-in');

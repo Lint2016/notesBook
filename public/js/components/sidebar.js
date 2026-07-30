@@ -19,6 +19,7 @@ import {
   navItems, folderList, addFolderBtn, noteFolder, categoryFilters
 } from '../dom.js';
 import { escapeHtml, showToast } from '../utils/ui.js';
+import { t } from '../utils/i18n.js';
 import { addFolder, deleteFolder, updateNote } from '../db.js';
 import { applyFilters } from './notes-list.js';
 
@@ -53,13 +54,13 @@ export function setupSidebar() {
 
   addFolderBtn?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const name = prompt('Enter folder name:');
+    const name = prompt(t('nav.newFolder') + ':');
     if (name && name.trim()) {
       try {
         await addFolder(state.currentUser.uid, name);
-        showToast('Folder created ✓');
+        showToast(t('toast.folderCreated', { name }), 'success');
       } catch {
-        showToast('Failed to create folder', 'error');
+        showToast(t('toast.saveFailed'), 'error');
       }
     }
   });
@@ -78,10 +79,6 @@ export function setupSidebar() {
 // Purpose:
 // Renders the user's custom folders into the sidebar and updates the 
 // `<select>` dropdown in the editor modal.
-// 
-// Side effects:
-// Sets up Drag and Drop listeners on the new folder elements so users 
-// can drag note cards from the grid and drop them onto a folder to move them.
 // ----------------------------------------------------
 export function renderFolders(folders) {
   folderList.innerHTML = folders.map(f => `
@@ -126,17 +123,20 @@ export function renderFolders(folders) {
         try {
           const note = state.allNotes.find(n => n.id === noteId);
           await updateNote(state.currentUser.uid, noteId, { ...note, folderId: folderId === 'all' ? null : folderId });
-          showToast('Note moved ✓');
+          showToast('toast.noteUpdated', 'success');
         } catch {
-          showToast('Failed to move note', 'error');
+          showToast('toast.saveFailed', 'error');
         }
       }
     });
 
     item.querySelector('.delete-folder-btn')?.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm('Delete this folder? Notes will NOT be deleted.')) {
+      const folderObj = state.allFolders.find(f => f.id === item.dataset.id);
+      const folderName = folderObj ? folderObj.name : '';
+      if (confirm(t('toast.deleteFolderConfirm', { name: folderName }))) {
         await deleteFolder(state.currentUser.uid, item.dataset.id);
+        showToast('toast.folderDeleted', 'success');
         if (state.currentFolderId === item.dataset.id) {
           state.currentFolderId = 'all';
           document.querySelector('[data-nav="all"]')?.classList.add('active');

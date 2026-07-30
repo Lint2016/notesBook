@@ -17,6 +17,7 @@
 import { state } from '../state.js';
 import { notesList, notesCountBadge, searchInput, searchClearBtn } from '../dom.js';
 import { highlightText, escapeHtml, showToast } from '../utils/ui.js';
+import { t } from '../utils/i18n.js';
 import { togglePin, deleteNote, updateNote } from '../db.js';
 import { openModal } from './editor.js';
 
@@ -65,7 +66,7 @@ export function setupNotesList() {
       try {
         await updateNote(state.currentUser.uid, noteId, { ...note, content: newLines.join('\n') });
       } catch {
-        showToast('Failed to update checklist', 'error');
+        showToast('toast.saveFailed', 'error');
         e.target.checked = !e.target.checked;
       }
     }
@@ -75,11 +76,6 @@ export function setupNotesList() {
 // ----------------------------------------------------
 // Purpose:
 // Core sorting and filtering engine.
-// Filters `state.allNotes` against:
-// 1. The search input (matches title or content)
-// 2. The active category filter
-// 3. The active folder/pin filter
-// Finally sorts the result (pinned first, then by date) and calls renderNotes().
 // ----------------------------------------------------
 export function applyFilters() {
   const q = searchInput?.value.toLowerCase().trim() || '';
@@ -127,8 +123,8 @@ export function renderNotes(notes) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
             d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
         </svg>
-        <h3>No notes yet</h3>
-        <p>Tap the + button below to create your first note.</p>
+        <h3>${escapeHtml(t('notes.emptyState'))}</h3>
+        <p>${escapeHtml(t('notes.emptyStateDesc'))}</p>
       </div>`;
     return;
   }
@@ -141,10 +137,6 @@ export function renderNotes(notes) {
 // ----------------------------------------------------
 // Purpose:
 // Generates the DOM element for a single note card.
-// 
-// Side effects:
-// Attaches listeners to the card for Drag & Drop (for folder moving), 
-// editing, pinning, and deleting.
 // ----------------------------------------------------
 function createNoteCard(note, index = 0) {
   const card = document.createElement('article');
@@ -172,7 +164,7 @@ function createNoteCard(note, index = 0) {
         <h3 class="note-card-title">${highlightText(note.title, query)}</h3>
       </div>
       <div class="note-card-actions">
-        <button class="card-action-btn pin ${note.pinned ? 'active' : ''}" aria-label="Toggle pin" data-id="${note.id}" title="${note.pinned ? 'Unpin' : 'Pin'}">
+        <button class="card-action-btn pin ${note.pinned ? 'active' : ''}" aria-label="Toggle pin" data-id="${note.id}" title="${note.pinned ? t('notes.unpinned') : t('notes.pinned')}">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 10V8a2 2 0 0 0-2-2h-1V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2v7l5 3 5-3v-7h2a2 2 0 0 0 2-2z"/>
           </svg>
@@ -191,7 +183,7 @@ function createNoteCard(note, index = 0) {
         </button>
       </div>
     </div>
-    <div class="note-card-preview">${parseMarkdown(highlightText(note.content || 'No content', query), true)}</div>
+    <div class="note-card-preview">${parseMarkdown(highlightText(note.content || '', query), true)}</div>
     ${note.reminder ? `<div class="reminder-badge" title="Reminder set">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span>${formatReminder(note.reminder)}</span>
@@ -217,7 +209,7 @@ function createNoteCard(note, index = 0) {
   card.querySelector('.pin')?.addEventListener('click', (e) => {
     e.stopPropagation();
     togglePin(state.currentUser.uid, note.id, note.pinned)
-      .catch(() => showToast('Failed to toggle pin', 'error'));
+      .catch(() => showToast('toast.saveFailed', 'error'));
   });
   card.querySelector('.delete')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -239,11 +231,11 @@ function confirmDelete(noteId, noteTitle) {
   dialog.setAttribute('aria-modal', 'true');
   dialog.innerHTML = `
     <div class="confirm-box">
-      <h4>Delete Note</h4>
-      <p>Are you sure you want to delete "<strong>${escapeHtml(noteTitle)}</strong>"? This cannot be undone.</p>
+      <h4>${escapeHtml(t('toast.deleteNoteConfirm'))}</h4>
+      <p>"<strong>${escapeHtml(noteTitle)}</strong>"</p>
       <div class="confirm-actions">
-        <button class="btn-confirm-cancel" id="confirm-cancel-btn">Cancel</button>
-        <button class="btn-confirm-delete" id="confirm-delete-btn">Delete</button>
+        <button class="btn-confirm-cancel" id="confirm-cancel-btn">${escapeHtml(t('editor.cancelBtn'))}</button>
+        <button class="btn-confirm-delete" id="confirm-delete-btn">${escapeHtml(t('toast.noteDeleted'))}</button>
       </div>
     </div>`;
 
@@ -253,9 +245,9 @@ function confirmDelete(noteId, noteTitle) {
     dialog.remove();
     try {
       await deleteNote(state.currentUser.uid, noteId);
-      showToast('Note deleted.', 'success');
+      showToast('toast.noteDeleted', 'success');
     } catch {
-      showToast('Failed to delete note.', 'error');
+      showToast('toast.saveFailed', 'error');
     }
   });
 }
@@ -272,11 +264,7 @@ export function renderSkeletons(count) {
 
 // ----------------------------------------------------
 // Purpose:
-// A lightweight, custom markdown parser using regex. 
-// Supports: checklists, bold, italic, strikethrough, code, H1, lists, and linebreaks.
-//
-// Why:
-// Avoids bundling a heavy library like `marked.js` for simple formatting needs.
+// A lightweight, custom markdown parser using regex.
 // ----------------------------------------------------
 export function parseMarkdown(text = '', alreadyEscaped = false) {
   if (!text) return '';
@@ -296,12 +284,13 @@ export function parseMarkdown(text = '', alreadyEscaped = false) {
 
 // ----------------------------------------------------
 // Purpose:
-// Formats Firestore Timestamps into a human-readable string (e.g. "12 Oct 2023, 14:30").
+// Formats Firestore Timestamps into a human-readable string.
 // ----------------------------------------------------
 export function formatTimestamp(ts) {
   if (!ts) return 'Just now';
   const date = ts.toDate ? ts.toDate() : new Date(ts);
-  return new Intl.DateTimeFormat('en-ZA', {
+  const locale = state.preferredLanguage === 'fr' ? 'fr-FR' : (state.preferredLanguage === 'es' ? 'es-ES' : 'en-US');
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   }).format(date);
@@ -314,7 +303,8 @@ export function formatTimestamp(ts) {
 export function formatReminder(dateStr) {
   try {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const locale = state.preferredLanguage === 'fr' ? 'fr-FR' : (state.preferredLanguage === 'es' ? 'es-ES' : 'en-US');
+    return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch { return dateStr; }
 }
 

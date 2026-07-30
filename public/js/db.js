@@ -28,6 +28,8 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
+  getDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
@@ -59,14 +61,39 @@ function foldersRef(uid) {
 
 // ----------------------------------------------------
 // Purpose:
+// Saves the user's preferred language to Firestore user document.
+// ----------------------------------------------------
+export async function saveUserLanguagePreference(uid, lang) {
+  if (!uid) return;
+  const userRef = doc(db, 'users', uid);
+  return setDoc(userRef, { settings: { language: lang } }, { merge: true });
+}
+
+// ----------------------------------------------------
+// Purpose:
+// Fetches the user's preferred language from Firestore.
+// ----------------------------------------------------
+export async function getUserLanguagePreference(uid) {
+  if (!uid) return null;
+  try {
+    const userRef = doc(db, 'users', uid);
+    const snap = await getDoc(userRef);
+    if (snap.exists() && snap.data()?.settings?.language) {
+      return snap.data().settings.language;
+    }
+  } catch (err) {
+    console.warn('[db.js] Error loading language preference:', err);
+  }
+  return null;
+}
+
+// ----------------------------------------------------
+// Purpose:
 // Creates a new note document in Firestore.
 //
 // Expected Inputs:
 // - uid: The logged-in user's ID.
-// - noteData: Object containing title, content, folderId, etc.
-//
-// Async Operations:
-// - addDoc (Firestore write)
+// - noteData: Object containing title, content, folderId, lang, etc.
 // ----------------------------------------------------
 export async function addNote(uid, noteData) {
   const docRef = await addDoc(notesRef(uid), {
@@ -76,6 +103,7 @@ export async function addNote(uid, noteData) {
     folderId: noteData.folderId || null,
     reminder: noteData.reminder || null,
     attachments: noteData.attachments || [], // Array of { url, name, size, type }
+    lang: noteData.lang || 'en',
     pinned: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -89,17 +117,6 @@ export async function addNote(uid, noteData) {
 // Purpose:
 // Updates an existing note. Optionally saves the previous state to a 
 // history subcollection before applying the update.
-//
-// Why:
-// The version history feature allows users to recover accidental deletions
-// or track changes over time.
-//
-// Expected Inputs:
-// - skipVersion: A flag to disable version history saving for minor edits (like pinning).
-//
-// Async Operations:
-// - saveVersion (Custom Firestore write to subcollection)
-// - updateDoc (Firestore write to main document)
 // ----------------------------------------------------
 export async function updateNote(uid, noteId, noteData, skipVersion = false) {
   const ref = doc(db, 'users', uid, 'notes', noteId);
@@ -112,7 +129,7 @@ export async function updateNote(uid, noteId, noteData, skipVersion = false) {
     });
   }
 
-  const updateResult = await updateDoc(ref, {
+  const updateFields = {
     title: noteData.title.trim() || 'Untitled',
     content: noteData.content.trim(),
     category: noteData.category || 'General',
@@ -120,7 +137,13 @@ export async function updateNote(uid, noteId, noteData, skipVersion = false) {
     reminder: noteData.reminder || null,
     attachments: noteData.attachments || [],
     updatedAt: serverTimestamp()
-  });
+  };
+
+  if (noteData.lang) {
+    updateFields.lang = noteData.lang;
+  }
+
+  const updateResult = await updateDoc(ref, updateFields);
   logAnalyticsEvent('update_note');
   return updateResult;
 }

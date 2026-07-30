@@ -24,21 +24,13 @@ import {
   linkForgotPassword, linkBackToLogin
 } from '../dom.js';
 import { showFormError, setLoading, escapeHtml, showToast } from '../utils/ui.js';
+import { t } from '../utils/i18n.js';
 import { state } from '../state.js';
 
 // ----------------------------------------------------
 // Purpose:
 // Attaches event listeners to the login, signup, and forgot password forms.
 // Also handles the Google OAuth button clicks.
-//
-// Why:
-// Needs to run once on app initialization to make the forms interactive.
-//
-// Async Operations:
-// - await resetPassword(), signUp(), signIn(), signInWithGoogle() (via auth.js)
-//
-// Side effects:
-// Modifies the DOM to show loading states and error messages.
 // ----------------------------------------------------
 export function setupAuthUI() {
   tabLogin?.addEventListener('click', () => switchTab('login'));
@@ -54,23 +46,23 @@ export function setupAuthUI() {
     const email     = document.getElementById('forgot-email')?.value.trim();
     const submitBtn = document.getElementById('forgot-submit-btn');
 
-    if (!email) { showFormError(forgotError, 'Please enter your email.'); return; }
+    if (!email) { showFormError(forgotError, t('auth.errorEnterEmail')); return; }
 
-    setLoading(submitBtn, true, 'Sending…');
+    setLoading(submitBtn, true, t('editor.saving'));
     try {
       await resetPassword(email);
       if (forgotSuccess) {
-        forgotSuccess.textContent = 'Reset link sent! Check your email.';
+        forgotSuccess.textContent = t('auth.resetEmailSent');
         forgotSuccess.classList.remove('hidden');
       }
-      setLoading(submitBtn, false, 'Send Reset Link');
+      setLoading(submitBtn, false, t('auth.sendResetLink'));
       document.getElementById('forgot-email').value = '';
       setTimeout(() => {
         if (forgotForm && !forgotForm.classList.contains('hidden')) switchTab('login');
       }, 4000);
     } catch (err) {
       showFormError(forgotError, friendlyAuthError(err.code));
-      setLoading(submitBtn, false, 'Send Reset Link');
+      setLoading(submitBtn, false, t('auth.sendResetLink'));
     }
   });
 
@@ -83,14 +75,14 @@ export function setupAuthUI() {
     const password  = document.getElementById('signup-password')?.value;
     const submitBtn = signupForm.querySelector('.btn-primary');
 
-    if (!username) { showFormError(signupError, 'Please enter a username.'); return; }
+    if (!username) { showFormError(signupError, t('auth.usernamePlaceholder')); return; }
 
-    setLoading(submitBtn, true, 'Creating account…');
+    setLoading(submitBtn, true, t('editor.saving'));
     try {
       await signUp(username, email, password);
     } catch (err) {
       showFormError(signupError, friendlyAuthError(err.code));
-      setLoading(submitBtn, false, 'Create Account');
+      setLoading(submitBtn, false, t('auth.createAccount'));
     }
   });
 
@@ -102,7 +94,7 @@ export function setupAuthUI() {
   const password = document.getElementById('login-password')?.value;
   const submitBtn = document.getElementById('login-submit-btn');
 
-  setLoading(submitBtn, true, 'Signing in…');
+  setLoading(submitBtn, true, t('editor.saving'));
 
   try {
     await signIn(email, password);
@@ -110,7 +102,7 @@ export function setupAuthUI() {
     console.warn('[Auth] Sign-in failed:', err.code, err.message);
     showFormError(loginError, friendlyAuthError(err.code));
   } finally {
-    setLoading(submitBtn, false, 'Sign In');
+    setLoading(submitBtn, false, t('auth.signIn'));
   }
 });
 

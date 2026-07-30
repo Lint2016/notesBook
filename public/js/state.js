@@ -39,6 +39,9 @@ export const state = {
   currentAttachments: [],
   unsubscribeVersions: null,
   
+  // Internationalization State
+  preferredLanguage: localStorage.getItem('notebook_language') || 'en',
+
   // Command Palette State
   isPaletteOpen: false,
   paletteSelectedIndex: 0,

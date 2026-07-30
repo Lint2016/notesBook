@@ -44,13 +44,20 @@
       <header class="auth-brand">
         <img src="/assets/favicon.jpg" alt="NoteBook Logo" class="brand-logo" />
         <h1>NoteBook</h1>
-        <p>Your private notes, anywhere.</p>
-        <button type="button" id="front-explainer-btn" class="btn-primary" style="margin-top: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; padding: 8px 16px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          Watch Explainer
-        </button>
+        <p data-i18n="app.tagline">Your private notes, anywhere.</p>
+        <div style="margin-top: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
+          <button type="button" id="front-explainer-btn" class="btn-primary" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; padding: 8px 16px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span data-i18n="app.watchExplainer">Watch Explainer</span>
+          </button>
+          <select id="lang-select-auth" class="lang-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color, #ccc); background: var(--bg-card, #fff); color: var(--text-color, #333); font-size: 0.9rem; cursor: pointer;" aria-label="Select Language">
+            <option value="en">🇺🇸 English</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="es">🇪🇸 Español</option>
+          </select>
+        </div>
       </header>
 
       <!-- Auth Card -->
@@ -63,7 +70,8 @@
             class="auth-tab-btn active"
             role="tab"
             aria-selected="true"
-            aria-controls="login-form">
+            aria-controls="login-form"
+            data-i18n="auth.signIn">
             Sign In
           </button>
           <button
@@ -71,7 +79,8 @@
             class="auth-tab-btn"
             role="tab"
             aria-selected="false"
-            aria-controls="signup-form">
+            aria-controls="signup-form"
+            data-i18n="auth.createAccount">
             Create Account
           </button>
         </div>
@@ -79,21 +88,23 @@
         <!-- ─── Login Form ─── -->
         <form id="login-form" class="auth-form" novalidate aria-label="Sign in form">
           <div class="form-group">
-            <label for="login-email">Email</label>
+            <label for="login-email" data-i18n="auth.emailLabel">Email</label>
             <input
               id="login-email"
               type="email"
               placeholder="you@example.com"
+              data-i18n-placeholder="auth.emailPlaceholder"
               autocomplete="email"
               required />
           </div>
           <div class="form-group">
-            <label for="login-password">Password</label>
+            <label for="login-password" data-i18n="auth.passwordLabel">Password</label>
             <div class="input-wrapper">
               <input
                 id="login-password"
                 type="password"
                 placeholder="Your password"
+                data-i18n-placeholder="auth.passwordPlaceholder"
                 autocomplete="current-password"
                 required />
               <button type="button" class="password-toggle" data-target="login-password" aria-label="Toggle password visibility">
@@ -104,7 +115,7 @@
               </button>
             </div>
             <div class="form-help">
-              <button type="button" id="link-forgot-password" class="auth-link">Forgot Password?</button>
+              <button type="button" id="link-forgot-password" class="auth-link" data-i18n="auth.forgotPassword">Forgot Password?</button>
             </div>
           </div>
           <p id="login-error" class="auth-error hidden" role="alert" aria-live="polite"></p>
@@ -119,35 +130,37 @@
               <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
             </svg>
-            Continue with Google
+            <span data-i18n="auth.continueGoogle">Continue with Google</span>
           </button>
-          <div class="auth-divider"><span>or continue with email</span></div>
-          <button type="submit" class="btn-primary" id="login-submit-btn">Sign In</button>
+          <div class="auth-divider"><span data-i18n="auth.orEmail">or continue with email</span></div>
+          <button type="submit" class="btn-primary" id="login-submit-btn" data-i18n="auth.signIn">Sign In</button>
         </form>
 
         <!-- ─── Signup Form ─── -->
         <form id="signup-form" class="auth-form hidden" novalidate aria-label="Create account form">
           <div class="form-group">
-            <label for="signup-username">Username</label>
+            <label for="signup-username" data-i18n="auth.usernameLabel">Username</label>
             <input
               id="signup-username"
               type="text"
               placeholder="Your display name"
+              data-i18n-placeholder="auth.usernamePlaceholder"
               autocomplete="username"
               maxlength="30"
               required />
           </div>
           <div class="form-group">
-            <label for="signup-email">Email</label>
+            <label for="signup-email" data-i18n="auth.emailLabel">Email</label>
             <input
               id="signup-email"
               type="email"
               placeholder="you@example.com"
+              data-i18n-placeholder="auth.emailPlaceholder"
               autocomplete="email"
               required />
           </div>
           <div class="form-group">
-            <label for="signup-password">Password</label>
+            <label for="signup-password" data-i18n="auth.passwordLabel">Password</label>
             <div class="input-wrapper">
               <input
                 id="signup-password"
@@ -176,32 +189,33 @@
               <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
             </svg>
-            Continue with Google
+            <span data-i18n="auth.continueGoogle">Continue with Google</span>
           </button>
-          <div class="auth-divider"><span>or continue with email</span></div>
-          <button type="submit" class="btn-primary" id="signup-submit-btn">Create Account</button>
+          <div class="auth-divider"><span data-i18n="auth.orEmail">or continue with email</span></div>
+          <button type="submit" class="btn-primary" id="signup-submit-btn" data-i18n="auth.createAccount">Create Account</button>
         </form>
 
         <!-- ─── Forgot Password Form ─── -->
         <form id="forgot-form" class="auth-form hidden" novalidate aria-label="Reset password form">
           <div class="auth-form-header">
-            <h3>Reset Password</h3>
-            <p>Enter your email and we'll send you a link to reset your password.</p>
+            <h3 data-i18n="auth.resetPasswordTitle">Reset Password</h3>
+            <p data-i18n="auth.resetPasswordDesc">Enter your email and we'll send you a link to reset your password.</p>
           </div>
           <div class="form-group">
-            <label for="forgot-email">Email</label>
+            <label for="forgot-email" data-i18n="auth.emailLabel">Email</label>
             <input
               id="forgot-email"
               type="email"
               placeholder="you@example.com"
+              data-i18n-placeholder="auth.emailPlaceholder"
               autocomplete="email"
               required />
           </div>
           <p id="forgot-error" class="auth-error hidden" role="alert" aria-live="polite"></p>
           <p id="forgot-success" class="auth-success hidden" role="alert" aria-live="polite"></p>
-          <button type="submit" class="btn-primary" id="forgot-submit-btn">Send Reset Link</button>
+          <button type="submit" class="btn-primary" id="forgot-submit-btn" data-i18n="auth.sendResetLink">Send Reset Link</button>
           <div class="form-footer">
-            <button type="button" id="link-back-to-login" class="auth-link">Back to Sign In</button>
+            <button type="button" id="link-back-to-login" class="auth-link" data-i18n="auth.backToSignIn">Back to Sign In</button>
           </div>
         </form>
 
@@ -247,13 +261,19 @@
         </svg>
       </button>
 
+      <select id="lang-select-header" class="lang-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color, #ccc); background: var(--bg-card, #fff); color: var(--text-color, #333); font-size: 0.85rem; cursor: pointer;" aria-label="Select Language">
+        <option value="en">🇺🇸 EN</option>
+        <option value="fr">🇫🇷 FR</option>
+        <option value="es">🇪🇸 ES</option>
+      </select>
+
       <button id="logout-btn" class="btn-logout" aria-label="Logout">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
           <polyline points="16 17 21 12 16 7"/>
           <line x1="21" y1="12" x2="9" y2="12"/>
         </svg>
-        Logout
+        <span data-i18n="nav.signOut">Logout</span>
       </button>
     </header>
 
@@ -265,13 +285,13 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
-            <span>All Notes</span>
+            <span data-i18n="nav.allNotes">All Notes</span>
           </button>
           <button class="nav-item" data-nav="pinned">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 10V8a2 2 0 0 0-2-2h-1V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2v7l5 3 5-3v-7h2a2 2 0 0 0 2-2z"/>
             </svg>
-            <span>Pinned</span>
+            <span data-i18n="notes.pinned">Pinned</span>
           </button>
           <button id="show-guide-btn" class="nav-item">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -283,13 +303,13 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            <span>Support</span>
+            <span data-i18n="nav.support">Support</span>
           </button>
           <button id="sidebar-explainer-btn" class="nav-item">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
-            <span>Explainer Video</span>
+            <span data-i18n="app.watchExplainer">Explainer Video</span>
           </button>
 
 
@@ -297,8 +317,8 @@
 
           <div class="sidebar-section">
             <div class="section-header">
-              <span>Folders</span>
-              <button id="add-folder-btn" class="icon-btn" title="New Folder">
+              <span data-i18n="nav.folders">Folders</span>
+              <button id="add-folder-btn" class="icon-btn" title="New Folder" data-i18n-title="nav.newFolder">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
@@ -349,6 +369,7 @@
           id="search-input"
           type="search"
           placeholder="Search notes…"
+          data-i18n-placeholder="nav.searchPlaceholder"
           aria-label="Search notes" />
         <button id="search-clear-btn" class="search-clear-btn" aria-label="Clear search" title="Clear Search">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -359,11 +380,11 @@
 
       <!-- Category Filters -->
       <div class="category-filters" id="category-filters" role="tablist" aria-label="Filter by category">
-        <button class="filter-chip active" data-category="all">All</button>
-        <button class="filter-chip" data-category="General">General</button>
-        <button class="filter-chip" data-category="Work">Work</button>
-        <button class="filter-chip" data-category="Personal">Personal</button>
-        <button class="filter-chip" data-category="Ideas">Ideas</button>
+        <button class="filter-chip active" data-category="all" data-i18n="nav.allNotes">All</button>
+        <button class="filter-chip" data-category="General" data-i18n="nav.general">General</button>
+        <button class="filter-chip" data-category="Work" data-i18n="nav.work">Work</button>
+        <button class="filter-chip" data-category="Personal" data-i18n="nav.personal">Personal</button>
+        <button class="filter-chip" data-category="Ideas" data-i18n="nav.ideas">Ideas</button>
       </div>
 
       <!-- Notes List -->
@@ -376,7 +397,7 @@
 
 
     <!-- ─── Floating Action Button ─── -->
-    <button id="fab-btn" class="fab" aria-label="Create new note" title="New Note">
+    <button id="fab-btn" class="fab" aria-label="Create new note" title="New Note" data-i18n-title="editor.newNote">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
       </svg>
@@ -397,9 +418,9 @@
 
     <div class="modal">
       <header class="modal-header">
-        <h3 id="modal-title">New Note</h3>
+        <h3 id="modal-title" data-i18n="editor.newNote">New Note</h3>
         <div class="modal-header-actions">
-          <button id="history-toggle-btn" class="icon-btn" title="Version History">
+          <button id="history-toggle-btn" class="icon-btn" title="Version History" data-i18n-title="editor.historyTitle">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
@@ -416,7 +437,7 @@
         <!-- Version History Panel (Hidden by default) -->
         <div id="history-panel" class="history-panel hidden">
           <header class="panel-header">
-            <h4>Version History</h4>
+            <h4 data-i18n="editor.historyTitle">Version History</h4>
             <button id="close-history-btn" class="icon-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -431,6 +452,7 @@
           id="note-title"
           type="text"
           placeholder="Speaker / Title"
+          data-i18n-placeholder="editor.titlePlaceholder"
           maxlength="120"
           aria-label="Note title" />
         
@@ -438,18 +460,18 @@
           <label for="note-folder">Folder & Category</label>
           <div class="modal-tools">
             <div class="editor-tabs" role="tablist">
-              <button id="edit-tab" class="tab-btn active" role="tab" aria-selected="true">Edit</button>
-              <button id="preview-tab" class="tab-btn" role="tab" aria-selected="false">Preview</button>
+              <button id="edit-tab" class="tab-btn active" role="tab" aria-selected="true" data-i18n="editor.editTab">Edit</button>
+              <button id="preview-tab" class="tab-btn" role="tab" aria-selected="false" data-i18n="editor.previewTab">Preview</button>
             </div>
             <select id="note-folder" aria-label="Select folder">
               <option value="none">No Folder</option>
               <!-- Populated dynamically -->
             </select>
             <select id="note-category" aria-label="Select category">
-              <option value="General">General</option>
-              <option value="Work">Work</option>
-              <option value="Personal">Personal</option>
-              <option value="Ideas">Ideas</option>
+              <option value="General" data-i18n="nav.general">General</option>
+              <option value="Work" data-i18n="nav.work">Work</option>
+              <option value="Personal" data-i18n="nav.personal">Personal</option>
+              <option value="Ideas" data-i18n="nav.ideas">Ideas</option>
             </select>
             <button id="attach-btn" class="tool-btn" title="Add Attachment (Max 1MB)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -480,6 +502,7 @@
           <textarea
             id="note-content"
             placeholder="Start typing your notes here…"
+            data-i18n-placeholder="editor.contentPlaceholder"
             aria-label="Note content"></textarea>
           <div id="note-preview" class="note-preview hidden" aria-label="Markdown preview"></div>
         </div>
@@ -500,8 +523,8 @@
       </div>
 
       <footer class="modal-footer">
-        <button id="cancel-modal-btn" class="btn-cancel">Cancel</button>
-        <button id="save-note-btn" class="btn-save">Save Note</button>
+        <button id="cancel-modal-btn" class="btn-cancel" data-i18n="editor.cancelBtn">Cancel</button>
+        <button id="save-note-btn" class="btn-save" data-i18n="editor.saveBtn">Save Note</button>
       </footer>
     </div>
 

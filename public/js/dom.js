@@ -43,6 +43,8 @@ export const forgotSuccess = document.getElementById('forgot-success');
 export const linkForgotPassword = document.getElementById('link-forgot-password');
 export const linkBackToLogin    = document.getElementById('link-back-to-login');
 export const frontExplainerBtn  = document.getElementById('front-explainer-btn');
+export const langSelectAuth     = document.getElementById('lang-select-auth');
+export const langSelectHeader   = document.getElementById('lang-select-header');
 
 // ----------------------------------------------------
 // Section: Dashboard

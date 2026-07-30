@@ -29,6 +29,7 @@ import {
   smartSuggestions, historyToggleBtn, historyPanel, closeHistoryBtn, versionList
 } from '../dom.js';
 import { showToast, escapeHtml } from '../utils/ui.js';
+import { t, speechLocales } from '../utils/i18n.js';
 import { updateNote, addNote, subscribeToVersions } from '../db.js';
 import { parseMarkdown } from './notes-list.js';
 import { storage } from '../firebase-config.js';
@@ -64,28 +65,36 @@ export function setupEditor() {
     const reminder = noteContent?.dataset.reminder || null;
 
     if (!content && !title) {
-      showToast('Please add a title or content.', 'error');
+      showToast('toast.enterTitleOrContent', 'error');
       return;
     }
 
-    if (saveNoteBtn) { saveNoteBtn.disabled = true; saveNoteBtn.textContent = 'Saving…'; }
+    if (saveNoteBtn) { saveNoteBtn.disabled = true; saveNoteBtn.textContent = t('editor.saving'); }
 
     try {
-      const noteData = { title, content, category, folderId, reminder, attachments: state.currentAttachments };
+      const noteData = { 
+        title, 
+        content, 
+        category, 
+        folderId, 
+        reminder, 
+        attachments: state.currentAttachments,
+        lang: state.preferredLanguage 
+      };
 
       if (state.editingNoteId) {
         await updateNote(state.currentUser.uid, state.editingNoteId, noteData);
-        showToast('Note updated ✓', 'success');
+        showToast('toast.noteUpdated', 'success');
       } else {
         await addNote(state.currentUser.uid, noteData);
-        showToast('Note created ✓', 'success');
+        showToast('toast.noteCreated', 'success');
       }
       if (noteContent) delete noteContent.dataset.reminder;
       closeModal();
     } catch (err) {
       console.error(err);
-      showToast('Failed to save note. Try again.', 'error');
-      if (saveNoteBtn) { saveNoteBtn.disabled = false; saveNoteBtn.textContent = 'Save Note'; }
+      showToast('toast.saveFailed', 'error');
+      if (saveNoteBtn) { saveNoteBtn.disabled = false; saveNoteBtn.textContent = t('editor.saveBtn'); }
     }
   });
 
@@ -153,7 +162,7 @@ export function setupEditor() {
 // ----------------------------------------------------
 export function openModal(mode, note = null) {
   state.editingNoteId = mode === 'edit' ? note.id : null;
-  if (modalTitle) modalTitle.textContent = mode === 'edit' ? 'Edit Note' : 'New Note';
+  if (modalTitle) modalTitle.textContent = mode === 'edit' ? t('editor.editNote') : t('editor.newNote');
   if (noteTitle)    noteTitle.value    = note ? note.title    : '';
   if (noteCategory) noteCategory.value = note ? note.category : 'General';
   if (noteContent)  noteContent.value  = note ? note.content  : '';
@@ -183,9 +192,6 @@ export function openModal(mode, note = null) {
 // ----------------------------------------------------
 // Purpose:
 // Cleans up the modal state and hides it.
-//
-// Side effects:
-// Resets input values, stops voice dictation, unsubscribes from version history.
 // ----------------------------------------------------
 function closeModal() {
   modalBackdrop?.classList.add('hidden');
@@ -210,7 +216,7 @@ function closeModal() {
   state.recognition = null;
   originalNoteContent = '';
 
-  if (saveNoteBtn) { saveNoteBtn.disabled = false; saveNoteBtn.textContent = 'Save Note'; }
+  if (saveNoteBtn) { saveNoteBtn.disabled = false; saveNoteBtn.textContent = t('editor.saveBtn'); }
 }
 
 // ----------------------------------------------------
@@ -231,10 +237,6 @@ function switchEditorTab(tab) {
 // ----------------------------------------------------
 // Purpose:
 // Uses simple regex patterns to catch common grammatical errors (like its vs it's).
-//
-// Why:
-// A lightweight, offline grammar check that provides immediate feedback without 
-// needing an external API.
 // ----------------------------------------------------
 function reviewGrammar() {
   const text = noteContent?.value || '';
@@ -248,20 +250,16 @@ function reviewGrammar() {
   let found = false;
   patterns.forEach(p => {
     if (p.regex.test(text)) {
-      showToast(`Hint: Check "${p.suggestion}" usage`, 'error');
+      showToast(t('toast.grammarHint', { suggestion: p.suggestion }), 'error');
       found = true;
     }
   });
-  if (!found) showToast('No common errors found! ✓');
+  if (!found) showToast(t('toast.noGrammarErrors'), 'success');
 }
 
 // ----------------------------------------------------
 // Purpose:
 // Uploads a file to Firebase Storage and links it to the current note.
-//
-// Async Operations:
-// - uploadBytesResumable (Firebase Storage)
-// - getDownloadURL (Firebase Storage)
 // ----------------------------------------------------
 async function handleAttachmentUpload(file) {
   if (!state.currentUser) return;
@@ -288,7 +286,7 @@ async function handleAttachmentUpload(file) {
     },
     (error) => {
       console.error('[Upload] Error:', error);
-      showToast('Failed to upload attachment.', 'error');
+      showToast(t('toast.fileTooLarge'), 'error');
       mediaItem.remove();
       if (state.currentAttachments.length === 0) renderMediaTray();
     },
@@ -304,7 +302,7 @@ async function handleAttachmentUpload(file) {
       };
       state.currentAttachments.push(attachment);
       renderMediaTray();
-      showToast('Attachment added!', 'success');
+      showToast('toast.attachmentAdded', 'success');
     }
   );
 }
@@ -337,7 +335,7 @@ function renderMediaTray() {
   mediaTray.innerHTML = '';
   if (state.currentAttachments.length === 0) {
     mediaTray.classList.add('media-tray--empty');
-    mediaTray.innerHTML = '<p class="media-tray-empty-msg">No attachments yet. Tap the paperclip to add an image or PDF (max 1MB).</p>';
+    mediaTray.innerHTML = `<p class="media-tray-empty-msg">No attachments yet. Tap the paperclip to add an image or PDF (max 1MB).</p>`;
     return;
   }
 
@@ -375,7 +373,7 @@ function renderMediaTray() {
 // Deletes a file from Firebase Storage and removes it from the note's state.
 // ----------------------------------------------------
 async function deleteAttachment(attachment) {
-  if (!confirm('Remove this attachment?')) return;
+  if (!confirm(t('toast.removeAttachmentConfirm'))) return;
   try {
     const fileRef = ref(storage, attachment.storagePath);
     await deleteObject(fileRef);
@@ -384,7 +382,7 @@ async function deleteAttachment(attachment) {
   }
   state.currentAttachments = state.currentAttachments.filter(a => a.id !== attachment.id);
   renderMediaTray();
-  showToast('Attachment removed.', 'success');
+  showToast('toast.attachmentRemoved', 'success');
 }
 
 // ----------------------------------------------------
@@ -449,10 +447,10 @@ function updateSmartSuggestions() {
 // ----------------------------------------------------
 function loadNoteHistory() {
   if (!state.editingNoteId || !state.currentUser) {
-    if (versionList) versionList.innerHTML = '<div class="palette-group-title">No history for new notes</div>';
+    if (versionList) versionList.innerHTML = `<div class="palette-group-title">${escapeHtml(t('editor.noHistoryNew'))}</div>`;
     return;
   }
-  if (versionList) versionList.innerHTML = '<div class="palette-group-title">Loading history...</div>';
+  if (versionList) versionList.innerHTML = `<div class="palette-group-title">${escapeHtml(t('editor.loadingHistory'))}</div>`;
   if (state.unsubscribeVersions) state.unsubscribeVersions();
   state.unsubscribeVersions = subscribeToVersions(state.currentUser.uid, state.editingNoteId, renderVersionList);
 }
@@ -465,22 +463,22 @@ function renderVersionList(versions) {
   if (!versionList) return;
   versionList.innerHTML = '';
   if (versions.length === 0) {
-    versionList.innerHTML = '<div class="palette-group-title">No snapshots yet</div>';
+    versionList.innerHTML = `<div class="palette-group-title">${escapeHtml(t('editor.noHistory'))}</div>`;
     return;
   }
   versions.forEach(v => {
     const el = document.createElement('div');
     el.className = 'version-item';
-    const date = v.updatedAt?.toDate().toLocaleString() || 'Recent';
+    const date = v.updatedAt?.toDate().toLocaleString(state.preferredLanguage) || 'Recent';
     el.innerHTML = `
       <div class="version-date">${date}</div>
       <div class="version-preview">${escapeHtml(v.content)}</div>
     `;
     el.onclick = () => {
-      if (confirm("Restore this version? Your current unsaved changes will be overwritten.")) {
+      if (confirm(t('editor.restoreConfirm'))) {
         if (noteContent) noteContent.value = v.content;
         historyPanel?.classList.add('hidden');
-        showToast("Version restored. Don't forget to save!", 'success');
+        showToast('editor.versionRestored', 'success');
       }
     };
     versionList.appendChild(el);
@@ -490,9 +488,7 @@ function renderVersionList(versions) {
 // ----------------------------------------------------
 // Purpose:
 // Initializes the browser's native Web Speech API for voice-to-text dictation.
-//
-// Why:
-// Built-in accessibility and convenience feature.
+// Dynamic locale mapping according to active language (en-US, fr-FR, es-ES).
 // ----------------------------------------------------
 function initVoiceCapture() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -503,7 +499,7 @@ function initVoiceCapture() {
   state.recognition = new SpeechRecognition();
   state.recognition.continuous = true;
   state.recognition.interimResults = !isMobile;
-  state.recognition.lang = 'en-US';
+  state.recognition.lang = speechLocales[state.preferredLanguage] || 'en-US';
 
   state.recognition.onresult = (event) => {
     let currentSessionTranscript = '';
@@ -512,7 +508,6 @@ function initVoiceCapture() {
       const trimmedCurrent = currentSessionTranscript.trim();
       const trimmedTranscript = transcript.trim();
       
-      // Handle edge cases where mobile browsers accumulate previous results into the current transcript string
       if (trimmedCurrent && trimmedTranscript.toLowerCase().startsWith(trimmedCurrent.toLowerCase())) {
         currentSessionTranscript = transcript;
       } else {
@@ -535,7 +530,7 @@ function initVoiceCapture() {
   state.recognition.onstart = () => {
     state.isListening = true;
     micBtn?.classList.add('listening');
-    showToast('Listening...', 'success');
+    showToast('toast.listening', 'success');
   };
 
   state.recognition.onend = () => {
@@ -544,7 +539,7 @@ function initVoiceCapture() {
   };
 
   state.recognition.onerror = (event) => {
-    if (event.error !== 'no-speech') showToast('Microphone error: ' + event.error, 'error');
+    if (event.error !== 'no-speech') showToast(t('toast.micError', { error: event.error }), 'error');
     stopListening();
   };
 }

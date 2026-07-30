@@ -12,6 +12,7 @@
  */
 
 import { toastContainer } from '../dom.js';
+import { t } from './i18n.js';
 
 export function setLoading(btn, loading, label) {
   btn.disabled = loading;
@@ -48,9 +49,10 @@ export function highlightText(text = '', query = '', isMarkdown = false) {
 // ----------------------------------------------------
 // Purpose:
 // Injects a temporary pop-up notification (Toast) into the DOM and 
-// automatically removes it after 3 seconds.
+// automatically removes it after 3 seconds. Accepts string key or raw string.
 // ----------------------------------------------------
-export function showToast(message, type = 'success') {
+export function showToast(messageOrKey, type = 'success', params = {}) {
+  const message = t(messageOrKey, params);
   const icon = type === 'success' 
     ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
     : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
@@ -70,9 +72,9 @@ export function showToast(message, type = 'success') {
 
 export function getDynamicGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return t('greeting.morning');
+  if (hour < 18) return t('greeting.afternoon');
+  return t('greeting.evening');
 }
 
 /**
