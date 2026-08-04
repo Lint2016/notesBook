@@ -3016,7 +3016,6 @@ body::before {
   to { transform: translateX(0); }
 }
 
-/* Responsive Tweaks */
 @media (max-width: 768px) {
   .lightbox-content img {
     max-width: 95vw;
@@ -3025,3 +3024,48 @@ body::before {
     padding: 16px;
   }
 }
+
+/* ============================================================
+   Built By Attribution — Auth Page
+   ============================================================ */
+.built-by-credit {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--clr-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.built-by-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  color: var(--clr-accent-2);
+  font-weight: 600;
+  position: relative;
+  transition: color 0.2s ease;
+  letter-spacing: 0.03em;
+}
+
+.built-by-link::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--clr-accent-2);
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.built-by-link:hover {
+  color: var(--clr-accent);
+}
+
+.built-by-link:hover::after {
+  width: 100%;
+}
+

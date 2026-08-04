@@ -222,6 +222,12 @@
         </form>
 
       </div><!-- /.auth-card -->
+
+      <!-- Built by attribution -->
+      <p class="built-by-credit">
+        Built by <button type="button" id="built-by-btn" class="built-by-link">LintEdge</button>
+      </p>
+
     </div><!-- /.auth-container -->
   </section><!-- /#auth-section -->
 
@@ -684,6 +690,45 @@
       </div>
     </div>
   </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       DEVELOPER CONTACT MODAL
+  ══════════════════════════════════════════════ -->
+  <div id="contact-dev-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="contact-dev-modal-title">
+    <div class="modal">
+      <header class="modal-header">
+        <h3 id="contact-dev-modal-title">Contact the Developer</h3>
+        <button id="close-contact-dev-btn" class="modal-close" aria-label="Close contact modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </header>
+      <form id="contact-dev-form" class="modal-body support-form">
+        <div class="form-group">
+          <label for="contact-dev-name">Your Name</label>
+          <input type="text" id="contact-dev-name" name="name" placeholder="Name" required />
+        </div>
+        <div class="form-group">
+          <label for="contact-dev-email">Your Email</label>
+          <input type="email" id="contact-dev-email" name="email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="contact-dev-message">Message</label>
+          <textarea id="contact-dev-message" name="message" placeholder="Say hello, share feedback, or ask anything…" required></textarea>
+        </div>
+        <div id="contact-dev-error" class="auth-error hidden"></div>
+      </form>
+      <footer class="modal-footer">
+        <button id="cancel-contact-dev-btn" class="btn-cancel">Cancel</button>
+        <button type="submit" form="contact-dev-form" id="submit-contact-dev-btn" class="btn-save">
+          <span>Send Message</span>
+        </button>
+      </footer>
+    </div>
+  </div>
+
 
   <!-- ═══════════════════════════════════════════
        HIGH-END LIGHTBOX

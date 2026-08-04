@@ -154,6 +154,19 @@ export const videoModalBackdrop = document.getElementById('video-modal-backdrop'
 export const closeVideoBtn = document.getElementById('close-video-btn');
 export const explainerIframe = document.getElementById('explainer-iframe');
 
+// ----------------------------------------------------
+// Section: Developer Contact Modal
+// Purpose: Elements for the "Built by LintEdge" contact form on the auth page.
+// ----------------------------------------------------
+export const builtByBtn            = document.getElementById('built-by-btn');
+export const contactDevModal       = document.getElementById('contact-dev-modal-backdrop');
+export const closeContactDevBtn    = document.getElementById('close-contact-dev-btn');
+export const cancelContactDevBtn   = document.getElementById('cancel-contact-dev-btn');
+export const contactDevForm        = document.getElementById('contact-dev-form');
+export const submitContactDevBtn   = document.getElementById('submit-contact-dev-btn');
+export const contactDevError       = document.getElementById('contact-dev-error');
+
+
 /**
  * ============================================================================
  * END OF FILE SUMMARY

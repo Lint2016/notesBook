@@ -16,7 +16,9 @@ import {
   guideModal, showGuideBtn, closeGuideBtn, gotItBtn,
   supportModal, showSupportBtn, closeSupportBtn, cancelSupportBtn,
   supportForm, submitSupportBtn, supportError, sidebarToggle,
-  frontExplainerBtn, sidebarExplainerBtn, videoModalBackdrop, closeVideoBtn, explainerIframe
+  frontExplainerBtn, sidebarExplainerBtn, videoModalBackdrop, closeVideoBtn, explainerIframe,
+  builtByBtn, contactDevModal, closeContactDevBtn, cancelContactDevBtn,
+  contactDevForm, submitContactDevBtn, contactDevError
 } from '../dom.js';
 import { logAnalyticsEvent } from '../firebase-config.js';
 import { showToast } from '../utils/ui.js';
@@ -163,6 +165,83 @@ function toggleSupportModal(show = true) {
     setTimeout(() => document.getElementById('support-name').focus(), 100);
   }
 }
+
+// ----------------------------------------------------
+// Purpose:
+// Opens or closes the Contact Developer modal.
+// Side effects: resets the form and clears any error on open.
+// ----------------------------------------------------
+function toggleContactDevModal(show = true) {
+  contactDevModal.classList.toggle('hidden', !show);
+  if (show) {
+    contactDevForm.reset();
+    contactDevError.classList.add('hidden');
+    setTimeout(() => document.getElementById('contact-dev-name').focus(), 100);
+  }
+}
+
+// ----------------------------------------------------
+// Purpose:
+// Wires the "Built by LintEdge" button on the auth page to the
+// developer contact modal, and handles Formspree submission.
+// Reuses the same Formspree endpoint as the support modal.
+// ----------------------------------------------------
+export function setupContactDevModal() {
+  if (!builtByBtn || !contactDevModal) return;
+
+  builtByBtn.addEventListener('click', () => toggleContactDevModal(true));
+  closeContactDevBtn.addEventListener('click', () => toggleContactDevModal(false));
+  cancelContactDevBtn.addEventListener('click', () => toggleContactDevModal(false));
+
+  contactDevModal.addEventListener('click', (e) => {
+    if (e.target === contactDevModal) toggleContactDevModal(false);
+  });
+
+  contactDevForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    contactDevError.classList.add('hidden');
+
+    const formData = new FormData(contactDevForm);
+    const data = Object.fromEntries(formData.entries());
+
+    if (!data.name || !data.email || !data.message) {
+      contactDevError.textContent = 'Please fill in all fields.';
+      contactDevError.classList.remove('hidden');
+      return;
+    }
+
+    submitContactDevBtn.classList.add('loading');
+    submitContactDevBtn.disabled = true;
+
+    try {
+      const response = await fetch('https://formspree.io/f/mgodaenb', {
+        method: 'POST',
+        body: JSON.stringify({ ...data, _subject: 'Developer Contact — NoteBook' }),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        logAnalyticsEvent('contact_dev_form_submit', {});
+        showToast('Message sent! I\'ll get back to you soon.', 'success');
+        toggleContactDevModal(false);
+      } else {
+        const result = await response.json();
+        throw new Error(result.errors?.[0]?.message || 'Failed to send message.');
+      }
+    } catch (err) {
+      console.error('[ContactDev] Submission error:', err);
+      contactDevError.textContent = err.message || 'Something went wrong. Please try again later.';
+      contactDevError.classList.remove('hidden');
+    } finally {
+      submitContactDevBtn.classList.remove('loading');
+      submitContactDevBtn.disabled = false;
+    }
+  });
+}
+
 
 /**
  * ============================================================================

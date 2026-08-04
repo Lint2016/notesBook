@@ -53,7 +53,7 @@ import { setupSidebar, renderFolders } from './components/sidebar.js';
 import { setupNotesList, applyFilters, renderSkeletons, checkReminders } from './components/notes-list.js';
 import { setupEditor } from './components/editor.js';
 import { setupCommandPalette } from './components/command-palette.js';
-import { setupSupportModals } from './components/support-modal.js';
+import { setupSupportModals, setupContactDevModal } from './components/support-modal.js';
 import { logOut } from './auth.js';
 
 // --- Initialization ---
@@ -70,6 +70,7 @@ function initApp() {
   setupEditor();
   setupCommandPalette();
   setupSupportModals();
+  setupContactDevModal();
 
   // Language Selectors Handler
   [langSelectAuth, langSelectHeader].forEach(select => {
