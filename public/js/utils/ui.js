@@ -51,7 +51,7 @@ export function highlightText(text = '', query = '', isMarkdown = false) {
 // Injects a temporary pop-up notification (Toast) into the DOM and 
 // automatically removes it after 3 seconds. Accepts string key or raw string.
 // ----------------------------------------------------
-export function showToast(messageOrKey, type = 'success', params = {}) {
+export function showToast(messageOrKey, type = 'success', params = {}, actionText = null, onAction = null) {
   const message = t(messageOrKey, params);
   const icon = type === 'success' 
     ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
@@ -59,15 +59,30 @@ export function showToast(messageOrKey, type = 'success', params = {}) {
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `${icon}<span>${message}</span>`;
+  let inner = `${icon}<span>${message}</span>`;
+  
+  if (actionText) {
+    inner += `<button class="toast-action-btn" style="margin-left:auto;background:transparent;border:1px solid currentColor;color:inherit;border-radius:4px;padding:2px 8px;cursor:pointer;font-weight:bold;font-size:0.8rem;">${actionText}</button>`;
+  }
+  toast.innerHTML = inner;
   toastContainer.appendChild(toast);
   
+  let timerId;
+
+  if (actionText && onAction) {
+    toast.querySelector('.toast-action-btn').addEventListener('click', () => {
+      onAction();
+      clearTimeout(timerId);
+      toast.remove();
+    });
+  }
+
   // Stagger removal if multiple toasts exist
-  setTimeout(() => {
+  timerId = setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(-50%) translateY(-10px) scale(0.9)';
     setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  }, 5000);
 }
 
 export function getDynamicGreeting() {

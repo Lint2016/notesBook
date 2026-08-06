@@ -195,6 +195,16 @@ export async function deleteNote(uid, noteId) {
 
 // ----------------------------------------------------
 // Purpose:
+// Restores a previously deleted note back to Firestore.
+// ----------------------------------------------------
+export async function restoreNote(uid, noteId, noteData) {
+  const ref = doc(db, 'users', uid, 'notes', noteId);
+  await setDoc(ref, noteData);
+  logAnalyticsEvent('restore_note');
+}
+
+// ----------------------------------------------------
+// Purpose:
 // Flips the boolean 'pinned' flag on a note.
 //
 // Why:

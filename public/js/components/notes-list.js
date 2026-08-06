@@ -18,7 +18,7 @@ import { state } from '../state.js';
 import { notesList, notesCountBadge, searchInput, searchClearBtn } from '../dom.js';
 import { highlightText, escapeHtml, showToast } from '../utils/ui.js';
 import { t } from '../utils/i18n.js';
-import { togglePin, deleteNote, updateNote } from '../db.js';
+import { togglePin, deleteNote, updateNote, restoreNote } from '../db.js';
 import { openModal } from './editor.js';
 
 // ----------------------------------------------------
@@ -243,9 +243,25 @@ function confirmDelete(noteId, noteTitle) {
   dialog.querySelector('#confirm-cancel-btn')?.addEventListener('click', () => dialog.remove());
   dialog.querySelector('#confirm-delete-btn')?.addEventListener('click', async () => {
     dialog.remove();
+    
+    // Capture the note data before deletion so we can restore it if needed
+    const noteData = state.allNotes.find(n => n.id === noteId);
+    
     try {
       await deleteNote(state.currentUser.uid, noteId);
-      showToast('toast.noteDeleted', 'success');
+      
+      if (noteData) {
+        showToast('toast.noteDeleted', 'success', {}, 'UNDO', async () => {
+          try {
+            await restoreNote(state.currentUser.uid, noteId, noteData);
+          } catch (err) {
+            console.error('Failed to restore note:', err);
+            showToast('toast.saveFailed', 'error');
+          }
+        });
+      } else {
+        showToast('toast.noteDeleted', 'success');
+      }
     } catch {
       showToast('toast.saveFailed', 'error');
     }
