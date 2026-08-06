@@ -8,7 +8,7 @@
 
 // Increment this when changing SW caching behavior.
 // NOTE: this is independent from app "version" and exists purely to manage cache eviction.
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 
 const PRECACHE_NAME = `notebook-precache-${CACHE_VERSION}`;
 const RUNTIME_CACHE_NAME = `notebook-runtime-${CACHE_VERSION}`;
