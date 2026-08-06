@@ -256,6 +256,7 @@ function confirmDelete(noteId, noteTitle) {
             // Strip the 'id' field which was injected by the snapshot listener
             const { id, ...dataToRestore } = noteData;
             await restoreNote(state.currentUser.uid, noteId, dataToRestore);
+            alert('Restore function completed successfully! If you don\\'t see the note, it might be a filtering issue.');
           } catch (err) {
             console.error('Failed to restore note:', err);
             alert(`Restore failed: ${err.message || err}`);

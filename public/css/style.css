@@ -1975,6 +1975,7 @@ body::before {
   align-items: center;
   gap: 8px;
   transition: all 0.3s ease;
+  pointer-events: auto; /* Allow clicking the toast and its buttons */
 }
 
 
