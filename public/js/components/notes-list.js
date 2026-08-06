@@ -253,9 +253,12 @@ function confirmDelete(noteId, noteTitle) {
       if (noteData) {
         showToast('toast.noteDeleted', 'success', {}, 'UNDO', async () => {
           try {
-            await restoreNote(state.currentUser.uid, noteId, noteData);
+            // Strip the 'id' field which was injected by the snapshot listener
+            const { id, ...dataToRestore } = noteData;
+            await restoreNote(state.currentUser.uid, noteId, dataToRestore);
           } catch (err) {
             console.error('Failed to restore note:', err);
+            alert(`Restore failed: ${err.message || err}`);
             showToast('toast.saveFailed', 'error');
           }
         });
