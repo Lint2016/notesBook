@@ -59,25 +59,38 @@ export function showToast(messageOrKey, type = 'success', params = {}, actionTex
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  let inner = `${icon}<span>${message}</span>`;
-  
-  if (actionText) {
-    inner += `<button class="toast-action-btn" style="margin-left:auto;background:transparent;border:1px solid currentColor;color:inherit;border-radius:4px;padding:2px 8px;cursor:pointer;font-weight:bold;font-size:0.8rem;">${actionText}</button>`;
-  }
-  toast.innerHTML = inner;
-  toastContainer.appendChild(toast);
-  
+  // Always enable pointer events on the toast itself
+  toast.style.pointerEvents = 'auto';
+
+  // Build content using DOM methods so event listeners always bind to live elements
+  const iconSpan = document.createElement('span');
+  iconSpan.innerHTML = icon;
+
+  const textSpan = document.createElement('span');
+  textSpan.textContent = message;
+
+  toast.appendChild(iconSpan);
+  toast.appendChild(textSpan);
+
   let timerId;
 
   if (actionText && onAction) {
-    toast.querySelector('.toast-action-btn').addEventListener('click', () => {
+    const btn = document.createElement('button');
+    btn.textContent = actionText;
+    btn.style.cssText = 'margin-left:auto;background:transparent;border:1px solid currentColor;color:inherit;border-radius:4px;padding:2px 8px;cursor:pointer;font-weight:bold;font-size:0.8rem;pointer-events:auto;';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('[UNDO] Button clicked, running onAction callback');
       onAction();
       clearTimeout(timerId);
       toast.remove();
     });
+    toast.appendChild(btn);
   }
 
-  // Stagger removal if multiple toasts exist
+  toastContainer.appendChild(toast);
+
+  // Auto-dismiss after 5 seconds
   timerId = setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(-50%) translateY(-10px) scale(0.9)';
