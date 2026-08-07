@@ -3070,3 +3070,35 @@ body::before {
   width: 100%;
 }
 
+
+/* --- SweetAlert2 Theme Override --- */
+.swal-restore-popup {
+  border: 1px solid rgba(124, 77, 255, 0.35) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 40px rgba(124, 77, 255, 0.28), 0 2px 12px rgba(0,0,0,0.5) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.swal-restore-title {
+  font-family: var(--font-main, 'Inter', sans-serif) !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.swal-restore-btn {
+  border-radius: 10px !important;
+  font-family: var(--font-main, 'Inter', sans-serif) !important;
+  font-weight: 600 !important;
+  padding: 10px 28px !important;
+  letter-spacing: 0.02em !important;
+  transition: opacity 0.2s !important;
+}
+
+.swal-restore-btn:hover {
+  opacity: 0.88 !important;
+}
+
+.swal2-timer-progress-bar {
+  background: rgba(124, 77, 255, 0.7) !important;
+}

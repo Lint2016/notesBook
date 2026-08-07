@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "notesbook-3d7fc"
+  },
+  "targets": {
+    "notesbook-3d7fc": {
+      "hosting": {
+        "notesbook-3d7fc": [
+          "notesbook-3d7fc"
+        ]
+      }
+    }
   }
 }

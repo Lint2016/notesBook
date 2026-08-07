@@ -256,10 +256,45 @@ function confirmDelete(noteId, noteTitle) {
             // Strip the 'id' field which was injected by the snapshot listener
             const { id, ...dataToRestore } = noteData;
             await restoreNote(state.currentUser.uid, noteId, dataToRestore);
-            alert('Restore OK - if note is missing, check console for errors.');
+            Swal.fire({
+              icon: 'success',
+              title: 'Note Restored! 🎉',
+              text: 'Your note has been successfully brought back.',
+              confirmButtonText: 'Great!',
+              confirmButtonColor: '#7c4dff',
+              background: '#1e1b2e',
+              color: '#e8e0ff',
+              showClass: {
+                popup: 'animate__animated animate__fadeInDown animate__faster'
+              },
+              hideClass: {
+                popup: 'animate__animated animate__fadeOutUp animate__faster'
+              },
+              timer: 3500,
+              timerProgressBar: true,
+              toast: false,
+              customClass: {
+                popup: 'swal-restore-popup',
+                title: 'swal-restore-title',
+                confirmButton: 'swal-restore-btn'
+              }
+            });
           } catch (err) {
             console.error('Failed to restore note:', err);
-            alert(`Restore failed: ${err.message || err}`);
+            Swal.fire({
+              icon: 'error',
+              title: 'Restore Failed',
+              text: err.message || 'Something went wrong. Please check the console for details.',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#7c4dff',
+              background: '#1e1b2e',
+              color: '#e8e0ff',
+              customClass: {
+                popup: 'swal-restore-popup',
+                title: 'swal-restore-title',
+                confirmButton: 'swal-restore-btn'
+              }
+            });
             showToast('toast.saveFailed', 'error');
           }
         });
