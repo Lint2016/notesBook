@@ -107,8 +107,9 @@ export function setupSupportModals() {
 
   // Video Explainer Modal
   const openVideoModal = () => {
-    explainerIframe.src = 'https://www.youtube.com/embed/THgXgOnF6xo?autoplay=1';
     videoModalBackdrop.classList.remove('hidden');
+    // Muted autoplay is allowed by desktop browsers; users can enable audio in YouTube.
+    explainerIframe.src = 'https://www.youtube.com/embed/THgXgOnF6xo?autoplay=1&mute=1&playsinline=1&rel=0';
   };
 
   const closeVideoModal = () => {
