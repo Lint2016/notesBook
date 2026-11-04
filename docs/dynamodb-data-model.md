@@ -4,7 +4,6 @@
 **Scope:** Current-state mapping, DynamoDB logical data model, offline mutation contract, concurrency, idempotency, migration behavior, failure handling, and acceptance criteria
 **Implementation status:** Design only. No AWS resources or application code are implemented or changed by this document.
 **Evidence basis:** Read-only repository audit of the current Notebook frontend, Firebase configuration, Firestore/Storage rules, and deployment workflows. Findings below describe inspected code; browser behavior that has not been tested is explicitly marked for verification.
-
 ---
 
 ## 1. Design goals
@@ -46,7 +45,20 @@ The repository audit observed the following current behavior. These are migratio
 6. Verify offline behavior in a browser before finalizing the AWS acceptance baseline; code inspection alone does not establish the exact user-visible acknowledgment behavior.
 
 ### 1.3 Current-to-target field mapping
-Current Firebase entity/fieldAWS target mappingMigration noteFirebase Auth UIDCognito subject/owner identityUser identity mapping must be established; do not assume Firebase UID equals Cognito `sub`. Maintain a controlled mapping if identifiers differ.User profile document and settings`PROFILE` item under `PK=USER#<aws-owner-id>`Audit confirms profile documents exist, but individual settings need a source-field inventory before migration.Firestore note document ID`noteId` and `SK=NOTE#<noteId>`Preserve original ID where practical; validate uniqueness within the user's partition.`title`, `content`Same logical attributesValidate supported types and payload-size limits.`category`, `folderId`, pin state`category`, `folderId`, `pinned`Preserve values; validate referenced folder behavior and normalize pin state to a boolean.`reminder``reminder`Current value is a string; document and validate the accepted format before adding scheduling semantics.`lang``lang`Preserve the existing language field.`createdAt`, `updatedAt``createdAt`, `updatedAt`Keep source timestamps as migration provenance where useful; future AWS writes use server-managed timestamps.Attachment metadata (`URL`, name, size, type, ID, Storage path)Attachment metadata with S3 object key and upload stateA Firebase download URL is not an S3 key. Copy the object, verify it, and rewrite metadata before relying on S3. Never log signed URLs or tokens.Folder document ID, `name`, `parentId`, `createdAt``folderId`, `name`, `parentId`, timestamps, `version`Preserve `parentId` even though the current UI does not appear to create nested folders. Decide whether nested-folder behavior is supported in AWS UI.Legacy version subcollection content + timestampVersion item marked `legacy=true` with source timestamp/provenanceDo not fabricate title, full note state, or reliable numeric version order that the source does not contain.
+
+| Current Firebase entity/field | AWS target mapping | Migration note |
+|---|---|---|
+| Firebase Auth UID | Cognito subject/owner identity | Establish an explicit identity mapping; do not assume Firebase UID equals Cognito `sub`. |
+| User profile document and settings | `PROFILE` item under `PK=USER#<aws-owner-id>` | Inventory individual settings before migration. |
+| Firestore note document ID | `noteId` and `SK=NOTE#<noteId>` | Preserve the original ID where practical; validate uniqueness within the user's partition. |
+| `title`, `content` | Same logical attributes | Validate supported types and payload-size limits. |
+| `category`, `folderId`, pin state | `category`, `folderId`, `pinned` | Preserve values; validate folder references and normalize pin state to a boolean. |
+| `reminder` | `reminder` | Current value is a string; document and validate its accepted format before adding scheduling semantics. |
+| `lang` | `lang` | Preserve the existing language field. |
+| `createdAt`, `updatedAt` | `createdAt`, `updatedAt` | Keep source timestamps as migration provenance where useful; future AWS writes use server-managed timestamps. |
+| Attachment metadata (`URL`, name, size, type, ID, Storage path) | Attachment metadata with S3 object key and lifecycle state | A Firebase download URL is not an S3 key. Copy and verify the object, then rewrite metadata. Never log signed URLs or tokens. |
+| Folder document ID, `name`, `parentId`, `createdAt` | `folderId`, `name`, `parentId`, timestamps, `version` | Preserve `parentId` even though the current UI does not appear to create nested folders. Decide whether nested-folder behavior is supported in the AWS UI. |
+| Legacy version subcollection content and timestamp | Version item marked `legacy=true` with source timestamp/provenance | Do not fabricate a title, full-note state, or reliable numeric version order that the source does not contain. |
 
 The exact profile settings and any additional fields must be confirmed by a source-field inventory before migration scripts are approved. This table is the known mapping from the audit, not a claim that every source field has already been enumerated.
 
@@ -54,20 +66,23 @@ The exact profile settings and any additional fields must be confirmed by a sour
 Initial logical table name: `notebook-data` (the deployed physical name
 should be environment-specific and managed by Terraform).
 
-Primary key: - Partition key: `PK` (String) - Sort key: `SK` (String)
+Primary key:
+- Partition key: `PK` (String)
+- Sort key: `SK` (String)
 
 The table is designed around user-scoped access. The backend derives the
 user ID from the validated Cognito identity and constructs `PK`; it must
-never trust a client-supplied user ID.
+never trust a client-supplied user ID. The `<uid>` placeholder in this
+document means the stable AWS owner identifier selected by the identity
+mapping, not necessarily the original Firebase UID.
 
-  Entity                         PK             SK
-
----
-  User profile                   `USER#<uid>`   `PROFILE`
-  Note                           `USER#<uid>`   `NOTE#<noteId>`
-  Folder                         `USER#<uid>`   `FOLDER#<folderId>`
-  Note version snapshot          `USER#<uid>`   `VERSION#<noteId>#<version>`
-  Idempotency/operation record   `USER#<uid>`   `OP#<operationId>`
+| Entity | PK | SK |
+|---|---|---|
+| User profile | `USER#<uid>` | `PROFILE` |
+| Note | `USER#<uid>` | `NOTE#<noteId>` |
+| Folder | `USER#<uid>` | `FOLDER#<folderId>` |
+| Note version snapshot | `USER#<uid>` | `VERSION#<noteId>#<20-digit-version>` |
+| Idempotency/operation record | `USER#<uid>` | `OP#<operationId>` |
 
 Use stable IDs generated before the first network request for notes,
 folders, and operations. This lets an offline-created resource retain
@@ -76,50 +91,43 @@ the same identity after synchronization.
 ### 2.1 Note item
 Representative logical attributes:
 
----
-  Attribute                           Meaning
+| Attribute | Meaning |
+|---|---|
+| `PK`, `SK` | Primary key |
+| `entityType` | `NOTE` |
+| `noteId` | Stable note ID |
+| `title`, `content` | Note fields |
+| `category`, `folderId`, `pinned` | Organization fields |
+| `version` | Integer concurrency version |
+| `createdAt`, `updatedAt` | Server-managed ISO-8601 timestamps |
+| `deleted`, `deletedAt` | Tombstone state, when deleted |
+| `attachments` | Attachment metadata references, if retained on the note |
 
----
-  `PK`, `SK`                          Primary key
-
-  `entityType`                        `NOTE`
-
-  `noteId`                            Stable note ID
-
-  `title`, `content`                  Note fields
-
-  `category`, `folderId`, `pinned`    Organization fields
-
-  `version`                           Integer concurrency version
-
-  `createdAt`, `updatedAt`            Server-managed ISO-8601 timestamps
-
-  `deleted`, `deletedAt`              Tombstone state, when deleted
-
-  `attachments`                       Attachment metadata references, if
-                                  retained on the note
-
----
 The backend, not the browser clock, owns authoritative `createdAt` and
 `updatedAt` values. Client timestamps may be retained as diagnostic
 metadata but must not determine conflict precedence.
 
 ### 2.2 Folder item
 Representative attributes: `PK`, `SK`, `entityType=FOLDER`, `folderId`,
-`name`, `createdAt`, `updatedAt`, `version`, and deletion state if
-folder tombstones are required.
+`name`, `createdAt`, `updatedAt`, `version`, and `state` (`ACTIVE` or
+`DELETING`). A completed deletion may use a tombstone or physical removal
+according to the retention policy selected before implementation.
 
-Initial folder deletion policy: reject deletion while notes still
-reference the folder; require the client to move those notes first. This
-avoids orphaned references.
+The guarded folder-deletion protocol in Section 8 uses `state` to prevent
+new note references while existing references are checked.
 
 ### 2.3 Version snapshot item
 Representative attributes: `PK`, `SK`, `entityType=VERSION`, `noteId`,
-`version`, `title`, `content`, `createdAt`, and any other fields
-required to reconstruct a note snapshot.
+`version` (Number), `title`, `content`, `createdAt`, and the note metadata
+captured by the snapshot convention below. The numeric version attribute
+remains numeric; only its sort-key representation is zero-padded.
 
 Version snapshots are written by the backend. The browser must not be
-trusted to author authoritative history records.
+trusted to author authoritative history records. The version component in
+the sort key is represented as a 20-digit, zero-padded decimal string so
+lexicographic sort-key order matches numeric version order. The item also
+stores the unpadded numeric `version` attribute for concurrency and client
+logic. Version values must fit the selected 20-digit representation.
 
 ### 2.4 Operation record
 Representative attributes: `PK`, `SK`, `entityType=OPERATION`,
@@ -137,71 +145,31 @@ too early can permit an old retry to be applied again.
 
 ## 3. Access patterns
 
----
-  ID                      Access pattern          Initial operation
+| ID | Access pattern | Initial operation |
+|---|---|---|
+| AP-01 | Load a user's notes | Query `PK = USER#<uid>` and `begins_with(SK, NOTE#)` |
+| AP-02 | Load a user's folders | Query `PK = USER#<uid>` and `begins_with(SK, FOLDER#)` |
+| AP-03 | Get one note | `GetItem` using exact PK and SK |
+| AP-04 | Create a note | Conditional `PutItem` |
+| AP-05 | Update a note | Conditional `UpdateItem` |
+| AP-06 | Delete a note | Conditional `UpdateItem` to tombstone |
+| AP-07 | Restore a note | Conditional `UpdateItem` from tombstone state |
+| AP-08 | Pin/unpin | Conditional `UpdateItem` setting explicit `pinned` value |
+| AP-09 | Move note | Conditional `UpdateItem` setting `folderId` |
+| AP-10 | Filter by folder | Client-side filtering after loading notes |
+| AP-11 | Filter by category | Client-side filtering after loading notes |
+| AP-12 | Search note text | Client-side search after loading notes |
+| AP-13 | Load versions for a note | Query with `begins_with(SK, VERSION#<noteId>#)`; results sort by zero-padded version key |
+| AP-14 | Create a version snapshot | `PutItem` in the same transaction as the corresponding mutation |
+| AP-15 | Get a specific version | `GetItem` using exact PK and SK |
+| AP-16 | Read attachment metadata | Read metadata associated with the note |
+| AP-17 | Upload attachment | Request presigned URL; upload directly to S3 |
+| AP-18 | Delete attachment | Authorized backend operation plus S3 deletion workflow |
+| AP-19 | Read/update user profile | `GetItem` / conditional `UpdateItem` |
+| AP-20 | Account deletion | Controlled cleanup workflow across DynamoDB and S3 |
+| AP-21 | Persist offline mutation | IndexedDB transaction on the client |
+| AP-22 | Synchronize mutation | Authenticated API request with idempotency and conditional writes |
 
----
-  AP-01                   Load a user's notes     Query `PK = USER#<uid>` and
-                                                  `begins_with(SK, NOTE#)`
-
-  AP-02                   Load a user's folders   Query `PK = USER#<uid>` and
-                                                  `begins_with(SK, FOLDER#)`
-
-  AP-03                   Get one note            GetItem using exact PK and SK
-
-  AP-04                   Create a note           Conditional PutItem
-
-  AP-05                   Update a note           Conditional UpdateItem
-
-  AP-06                   Delete a note           Conditional UpdateItem to tombstone
-
-  AP-07                   Restore a note          Conditional UpdateItem from tombstone
-                                                  state
-
-  AP-08                   Pin/unpin               Conditional UpdateItem setting
-                                                  explicit `pinned` value
-
-  AP-09                   Move note               Conditional UpdateItem setting
-                                                  `folderId`
-
-  AP-10                   Filter by folder        Client-side filtering after loading
-                                                  notes
-
-  AP-11                   Filter by category      Client-side filtering after loading
-                                                  notes
-
-  AP-12                   Search note text        Client-side search after loading notes
-
-  AP-13                   Load versions for a     Query with
-                          note                    `begins_with(SK, VERSION#<noteId>#)`
-
-  AP-14                   Create a version        PutItem, in the same transaction as
-                          snapshot                the corresponding mutation
-
-  AP-15                   Get a specific version  GetItem using exact PK and SK
-
-  AP-16                   Read attachment         Read metadata associated with the note
-                          metadata                
-
-  AP-17                   Upload attachment       Request presigned URL; upload directly
-                                                  to S3
-
-  AP-18                   Delete attachment       Authorized backend operation plus S3
-                                                  deletion workflow
-
-  AP-19                   Read/update user        GetItem/conditional UpdateItem
-                          profile                 
-
-  AP-20                   Account deletion        Controlled cleanup workflow across
-                                                  DynamoDB and S3
-
-  AP-21                   Persist offline         IndexedDB transaction on the client
-                          mutation                
-
-  AP-22                   Synchronize mutation    Authenticated API request with
-                                              idempotency and conditional writes
-
----
 No GSI or OpenSearch index is proposed initially. Reassess only if product requirements or measured performance show that client-side filtering/search or the current key model is insufficient.
 
 ### 3.1 Pagination contract
@@ -219,8 +187,7 @@ IndexedDB is the durable local store for cached entities and pending
 mutations. The existing service worker/PWA cache is not a substitute for
 a transactional data store.
 
-Suggested logical stores: - `notes` - `folders` - `versions` -
-`syncQueue` - `syncMetadata` (for cursor/state only if later required)
+Suggested logical stores: `notes`, `folders`, `versions`, `syncQueue`, and `syncMetadata` (for cursor/state only if later required).
 
 A mutation should be persisted to IndexedDB before the UI claims that
 the change is safely queued. The UI may update optimistically but must
@@ -248,8 +215,8 @@ not accept `PK`, `SK`, `userId`, authoritative timestamps, `version`, or
 deletion state from the client as trusted write values.
 
 Suggested local-only queue metadata includes `status`, `attempts`,
-`lastAttemptAt`, and `lastErrorCode`. Keep transport metadata separate
-from the business payload.
+`lastAttemptAt`, `lastErrorCode`, `claimantId`, and `leaseExpiresAt`. Keep
+transport/claim metadata separate from the business payload.
 
 ### 4.2 Supported operations
 
@@ -258,7 +225,8 @@ from the business payload.
 - `DELETE`
 - `MOVE`
 - `PIN`
-- `RESTORE`
+- `RESTORE` (restoring a deleted note; historical-snapshot restore loads content into the editor and is saved as a normal `UPDATE`)
+
 `PIN` must send an explicit desired state (`pinned: true` or
 `pinned: false`), not a toggle command. Retries of a toggle can invert a
 state that was already applied.
@@ -287,11 +255,13 @@ explicitly configured claim).
 operation/entity combinations.
 
 ### 5.2 Success response
-Return a structured response containing: - `operationId` - `outcome`
-(`APPLIED` or `ALREADY_APPLIED`) - `entityType` and `entityId` -
-authoritative `version` and server timestamps where relevant -
-authoritative resource state or a minimal result sufficient for the
-client to reconcile local state
+Return a structured response containing:
+
+- `operationId`
+- `outcome` (`APPLIED` or `ALREADY_APPLIED`)
+- `entityType` and `entityId`
+- authoritative `version` and server timestamps where relevant
+- authoritative resource state, or a minimal result sufficient for the client to reconcile local state
 
 Do not acknowledge/remove a queue entry until the client has received a
 valid outcome and committed the acknowledgement/local reconciliation to
@@ -299,17 +269,29 @@ IndexedDB. If the browser crashes before that local commit, it retries
 the same operation ID.
 
 ### 5.3 Error response
-Use machine-readable error codes, for example: - `INVALID_MUTATION` -
-`UNAUTHENTICATED` - `NOT_AUTHORIZED` - `RESOURCE_NOT_FOUND` -
-`VERSION_CONFLICT` - `RESOURCE_DELETED` - `IDEMPOTENCY_KEY_REUSED` -
-`RATE_LIMITED` - `TEMPORARY_FAILURE`
+Use machine-readable error codes, for example:
 
-Suggested HTTP mapping: - `200`: operation already applied and
-recorded - `201`: resource created - `400`: invalid request - `401`:
-missing/invalid/expired authentication - `403`: authenticated caller
-lacks permission - `404`: missing or inaccessible resource, without
-leaking another user's data - `409`: version conflict or incompatible
-resource state - `429`: throttled - `5xx`: temporary server failure
+- `INVALID_MUTATION`
+- `UNAUTHENTICATED`
+- `NOT_AUTHORIZED`
+- `RESOURCE_NOT_FOUND`
+- `VERSION_CONFLICT`
+- `RESOURCE_DELETED`
+- `IDEMPOTENCY_KEY_REUSED`
+- `RATE_LIMITED`
+- `TEMPORARY_FAILURE`
+
+Suggested HTTP mapping:
+
+- `200`: operation already applied and recorded, or a successful non-create mutation
+- `201`: resource created
+- `400`: invalid request
+- `401`: missing, invalid, or expired authentication
+- `403`: authenticated caller lacks permission
+- `404`: missing or inaccessible resource, without leaking another user's data
+- `409`: version conflict or incompatible resource state
+- `429`: throttled
+- `5xx`: temporary server failure
 
 The exact mapping should be kept consistent in implementation and tests.
 Do not return sensitive note contents in logs or error messages.
@@ -318,22 +300,16 @@ Do not return sensitive note contents in logs or error messages.
 A request can be applied by the backend while its response is lost.
 Therefore every retry must use the same `operationId`.
 
-For a new operation: 1. Compute a canonical request hash over the
-validated mutation fields. 2. Check for an existing operation record for
-the authenticated user and operation ID. 3. If a record exists with the
-same hash and a completed result, return the recorded result without
-repeating side effects. 4. If the ID exists with a different hash,
-reject with `IDEMPOTENCY_KEY_REUSED`. 5. If no record exists, attempt an
-atomic DynamoDB transaction that applies the mutation, writes the
-version snapshot when required, and records the successful operation
-result.
+For each request:
 
-The existing-operation read is an optimization, not the concurrency
-guarantee. Concurrent duplicate requests can both observe no record. The
-transaction must use conditions that ensure only one can commit the same
-operation ID and the resource mutation. A losing duplicate should
-re-read the operation record and return the recorded outcome if the hash
-matches.
+1. Validate the mutation and derive the owner identity from the authenticated token.
+2. Canonicalize the validated semantic mutation fields and compute a request hash. The canonicalization algorithm and included fields must be fixed in the API schema before implementation; transport-only fields and untrusted client timestamps must not change the semantic hash unless explicitly part of the mutation contract.
+3. Strongly consistently read the operation record for the authenticated user and `operationId`.
+4. If a completed record exists with the same hash, return its stored result as `ALREADY_APPLIED`. If the ID exists with a different hash, return `IDEMPOTENCY_KEY_REUSED`.
+5. If no record exists, attempt one atomic DynamoDB transaction. It must apply the resource mutation, write the required snapshot, and conditionally create the operation record with `attribute_not_exists` for that operation key.
+6. If a concurrent duplicate loses the transaction race, strongly consistently reread the operation record. If its hash matches, return the recorded result; if it differs, return `IDEMPOTENCY_KEY_REUSED`. If no operation record exists, classify the transaction cancellation using the resource's current state and return the appropriate conflict, condition, or transient error.
+
+The transaction is the concurrency guarantee; the initial operation-record read is an optimization. The operation record's conditional creation and the resource's version/state condition must be part of the same transaction. A duplicate retry must never create a second resource mutation or snapshot.
 
 Do not write the operation record separately after the resource update.
 That can leave a successful mutation with no idempotency record and
@@ -354,24 +330,25 @@ Each mutable resource has a server-managed integer `version`.
 `baseVersion` and the resource is not deleted.
 - On success, increment the version atomically and set `updatedAt` on
 the server.
-- For updates that create history, write the snapshot and the new note
-state in one DynamoDB transaction.
-- Use a deterministic version key such as
-`VERSION#<noteId>#<newVersion>`.
-- Define clearly whether the snapshot represents the pre-update or
-post-update state; choose one convention and test it consistently.
-Recommended convention: each version record stores the resulting
-state for that version, written atomically with the note's new
-version.
-If the conditional update fails because the current version differs, return `409 VERSION_CONFLICT` with the current version and, only after ownership is established, the latest resource state required by the client.
+- For note creation, write the version `1` snapshot and operation record in the same transaction as the new note.
+- For content updates that create history, write the resulting snapshot and new note state in one DynamoDB transaction. Metadata-only updates increment the note version but do not create a content snapshot by default, as specified in Section 7.1.
+- Use the deterministic version key `VERSION#<noteId>#<20-digit-version>` with the zero-padding convention defined in Section 2.3.
+- The snapshot represents the resulting state for its version, not the pre-update state.
+- If the conditional update fails because the current version differs, return `409 VERSION_CONFLICT` with the current version and, only after ownership is established, the latest resource state required by the client.
 
 ### 7.1 Snapshot semantics and legacy history
-**Target convention:** a version snapshot represents the resulting full note state for its own numeric version. For example, version `5` contains the complete note state after the successful mutation that produced version `5`. The note update, snapshot item, and idempotency result must commit atomically when a snapshot is required.
 
-- Content edits must create a full snapshot. Metadata-only operations (pin, move, category/folder changes, reminder changes) do not create a content-history snapshot by default; they still increment the note's concurrency `version`. If the product later requires full audit history for every field change, treat that as a separate explicit design decision.
-- The current Firebase history contains content-only snapshots and does not establish reliable pre-update/full-note semantics. Imported records must be labelled `legacy=true`, retain available source timestamps and source identifiers, and must not be represented as full snapshots or assigned fabricated version numbers.
-- Before migration, choose one of these explicit policies: (A) import legacy content entries as read-only legacy history; (B) retain them in Firebase read-only and expose a migration notice; or (C) exclude them only after a documented product decision. Recommended default: import them as read-only legacy history when their source records can be enumerated safely.
-- The migration acceptance test must verify that a new AWS version can be restored into an editor and saved as a new version, without mutating the historical snapshot itself.
+**Target convention:** a version snapshot represents the complete note state captured at the successful content-edit operation that produced that version. A snapshot is immutable after creation. Its `version` attribute is numeric, while its sort-key version component is zero-padded to 20 digits (for example, version 5 is `VERSION#<noteId>#00000000000000000005`).
+History queries must return the snapshot items that actually exist, ordered by their version sort keys. The client must not generate missing history entries or interpret gaps in snapshot versions as missing or corrupted data.
+
+- A newly created note starts at concurrency version `1` and creates its initial snapshot at version `1`. The create transaction includes the note item, initial snapshot, and operation record.
+- Content edits create a snapshot containing the resulting note state, including `title`, `content`, `category`, `folderId`, `reminder`, `lang`, `pinned`, and the attachment metadata references that are part of the note at that time. Do not copy binary attachment contents into DynamoDB snapshots.
+- Metadata-only operations (pin, move, category/folder changes, and reminder changes) increment the note's concurrency `version` but do not create a content-history snapshot by default. Consequently, not every numeric note version has a corresponding snapshot. The UI and API must not assume a one-to-one relationship between note versions and snapshot items.
+- Restoring a historical snapshot never changes or deletes that snapshot and never moves the note's version backwards. The client loads the selected snapshot into the editor; saving it is a new update based on the latest current note version and creates a new snapshot under the newly incremented version. Current metadata that is not explicitly restored should be preserved according to the restore UX contract. This is distinct from restoring a deleted note, which clears its tombstone through a conditional operation and increments the current version.
+- The note update, required snapshot, and idempotency result must commit atomically.
+- The current Firebase history contains content-only snapshots and does not establish reliable pre-update or full-note semantics. Imported records must be labelled `legacy=true`, retain available source timestamps and source identifiers, and must not be represented as verified full-note snapshots or assigned fabricated version numbers.
+- Before migration, choose one explicit policy: (A) import legacy content entries as read-only legacy history; (B) retain them in Firebase read-only and expose a migration notice; or (C) exclude them only after a documented product decision. Recommended default: import them as read-only legacy history when their source records can be enumerated safely.
+- The migration acceptance test must verify that a new AWS snapshot can be loaded into an editor and saved as a new version, without mutating the historical snapshot itself.
 
 ### Conflict resolution
 For note content conflicts: 1. Preserve the local draft. 2.
@@ -398,16 +375,20 @@ implementation. Cleanup must account for supported offline/retry windows
 and recovery expectations.
 
 ### Folder deletion
-Initially reject deleting a folder while notes reference it. Require
-notes to be moved or otherwise explicitly handled first. Folder
-updates/deletes also require concurrency checks.
+
+Reject deletion while notes reference the folder. A preliminary query alone is not sufficient because a note could be moved into the folder between the check and deletion. Use a guarded protocol:
+
+1. Conditionally transition the folder from `ACTIVE` to `DELETING` using its expected version.
+2. Every note-create or note-move operation that assigns a note to a folder must include a DynamoDB `ConditionCheck` for that folder's `state = ACTIVE` in the same `TransactWriteItems` transaction as the note mutation. A separate preliminary read is insufficient. The folder check and note mutation must be atomic with respect to one another.
+3. After the folder enters `DELETING`, query all pages of the user's notes and check for references. Use a strongly consistent query where supported and do not rely on a partial page.
+4. If references remain, conditionally return the folder to `ACTIVE` and reject deletion with a conflict that requires the user to move or otherwise handle those notes.
+5. If no references remain, complete the folder deletion/tombstone using a conditional write. Folder updates and deletes require concurrency checks.
+
+This protocol prevents a concurrent note assignment from racing past the deletion check.
 
 ### Attachment deletion
-DynamoDB metadata and S3 object deletion are not one atomic transaction.
-Treat this as a workflow: authorize the operation, update metadata/state
-safely, perform S3 deletion, and record/retry failures so the system can
-reconcile. Do not assume a DynamoDB transaction can include an S3 API
-call.
+
+DynamoDB metadata and S3 object deletion are not one atomic transaction. Treat deletion as a durable workflow: authorize the operation, mark the attachment `DELETE_PENDING` and detach it from the active note state as appropriate, perform S3 deletion, then record `DELETED` or `DELETE_FAILED`. Failed deletion must remain observable and retryable. S3 deletion should be safe to repeat. Do not assume a DynamoDB transaction can include an S3 API call.
 
 ## 9. Retry and recovery policy
 
@@ -427,9 +408,8 @@ attempt sync on app launch/resume and when the queue is non-empty.
 - Recover pending operations from IndexedDB after refresh/restart.
 - If local browser storage is cleared or evicted, unsynchronized
 local-only changes may be lost; do not promise otherwise.
-- Process dependent operations for the same resource in order. Avoid
-duplicate concurrent processing of one queue entry with a local
-lease/claim or equivalent coordination.
+- Process dependent operations for the same resource in order. Avoid duplicate concurrent processing of one queue entry with a local lease/claim or equivalent coordination.
+- Coordinate queue claims across browser tabs using an IndexedDB transaction. A claim should record a claimant identifier and lease expiry; a tab may renew its lease while processing. If a tab crashes, another tab may reclaim the entry after expiry. Lease duration, renewal cadence, and stale-claim recovery behavior are implementation gates. The same `operationId` must be retained when a claim is recovered.
 
 ## 10. Attachment scope
 Attachment binaries are not placed in the initial note mutation queue.
@@ -438,20 +418,21 @@ uploads directly to S3. The backend authorizes the requested
 note/attachment and constrains object keys to the authenticated user's
 namespace.
 
-Only mark an attachment as attached to a note after the upload succeeds
-and the metadata commit is confirmed. Failed or abandoned uploads
-require cleanup. The existing Firebase UI uploads attachments directly to Storage and limits each file to 1 MB. The audit indicates attachment upload requires connectivity; verify this in browser testing. Offline binary upload is out of scope for the initial sync engine.
+Only mark an attachment as attached to a note after the upload succeeds, the backend verifies the object (for example, with an object metadata check), and the metadata commit is confirmed. Suggested lifecycle states are `PENDING_UPLOAD`, `ACTIVE`, `DELETE_PENDING`, `DELETE_FAILED`, and `DELETED`. Failed or abandoned uploads require cleanup; abandoned multipart uploads must also be covered where multipart upload is used. The exact cleanup mechanism and age threshold are implementation gates. The existing Firebase UI uploads attachments directly to Storage and limits each file to 1 MB. The audit indicates attachment upload requires connectivity; verify this in browser testing. Offline binary upload is out of scope for the initial sync engine. AWS attachment size/type limits must be decided separately; do not assume the existing 1 MB limit is automatically the target limit.
 
 ### 10.1 Account deletion and cross-store cleanup
+
 Account deletion spans Cognito, DynamoDB, and S3 and cannot be treated as one atomic transaction. Implement a controlled, observable workflow:
 
 1. Authenticate and re-confirm the request; prevent new writes for the account once deletion is accepted.
-2. Mark the account/deletion job as pending in a durable control record or equivalent workflow state.
-3. Enumerate and delete user-owned DynamoDB items in bounded batches, including notes, folders, profiles, version items, and operation records, respecting DynamoDB limits and retrying unprocessed items.
+2. Create a durable deletion-job control record outside the user's ordinary `PK=USER#<uid>` partition. To preserve the initial one-table design, use a reserved key namespace such as `PK=ACCOUNT_DELETE#<uid>`, `SK=STATE`, with the job ID and workflow status stored as attributes. The ordinary user-data deletion sweep must not delete this control record. Every mutation transaction must include a DynamoDB `ConditionCheck` against the account-deletion control record. Mutations must be rejected when the deletion job is in a blocking state: `REQUESTED`, `PENDING`, `IN_PROGRESS`, or `RETRY_REQUIRED`. A missing control record permits normal mutations. A retained `COMPLETED` record must not block reads of deletion status, although the deleted Cognito identity must no longer be able to authenticate. If cancellation is supported, define its authorization and transition rules before implementation. The condition check must be part of the same transaction as the resource mutation; a preliminary read alone is insufficient. The control-record status transitions and mutation checks must be designed so a deletion request cannot race with a concurrent write.
+3. Enumerate and delete user-owned DynamoDB items in bounded batches, including notes, folders, profiles, version items, and operation records. Respect DynamoDB limits and retry unprocessed items.
 4. Enumerate and delete user-owned S3 objects, including attachments and abandoned multipart uploads where applicable.
 5. Record progress and failures without logging note contents or credentials; make the workflow safely retryable.
-6. Delete/disable the Cognito identity only when the chosen recovery and audit policy permits it. If the identity is deleted earlier, ensure the cleanup workflow can still continue using a trusted service role and durable job state.
-7. Verify no user-owned objects remain and emit an operational result. Define handling for partial failure and support escalation before implementation.
+6. Delete/disable the Cognito identity only when the chosen recovery and audit policy permits it. If the identity is deleted earlier, ensure cleanup can continue using a trusted service role and durable job state that does not depend on the user's token or identity record.
+7. Verify no user-owned DynamoDB items or S3 objects remain and emit an operational result. Mark the deletion job complete only after verification. Define partial-failure handling, retry exhaustion, and operator escalation before implementation.
+8. Retain or expire the deletion-job control record according to a separately defined audit/retention policy; do not remove it as part of ordinary user-data cleanup.
+
 The exact orchestration service is intentionally not fixed in this data-model document. Choose the simplest reliable mechanism during implementation planning; do not promise synchronous completion if cleanup can exceed request time limits.
 
 ## 11. Observability and privacy
@@ -460,10 +441,17 @@ outcome, retry count, error category, and request correlation ID. Avoid
 logging note titles, note content, attachment contents, access tokens,
 or unnecessary personal data.
 
-Useful metrics include: - mutation success/failure counts by error
-category - conflict rate - retry count and queue age - API latency and
-throttling - Lambda errors/throttles - DynamoDB conditional-check
-failures and throttling - age/count of operations needing user attention
+Useful metrics include:
+
+- Mutation success/failure counts by error category.
+- Conflict rate.
+- Retry count and queue age.
+- API latency and throttling.
+- Lambda errors/throttles.
+- DynamoDB conditional-check failures and throttling.
+- Age/count of operations needing user attention.
+- Count and age of pending/failed attachment cleanup jobs.
+- Count and age of incomplete account-deletion jobs.
 
 Alarm thresholds should be set when expected baseline traffic and
 operational goals are established.
@@ -509,24 +497,49 @@ result.
 28. Account deletion safely retries after partial DynamoDB or S3 cleanup failure and verifies cross-store cleanup.
 29. Browser tests document current Firebase offline create/update, refresh/restart, reconnect, and editor acknowledgment behavior as the baseline for the AWS implementation.
 30. Service-worker registration is confirmed as intended or documented as absent; no acceptance criterion assumes service-worker caching until verified.
+31. Folder deletion cannot race with a concurrent note create/move that assigns a note to the folder; the guarded folder state prevents new references while deletion is checked.
+32. A crashed browser tab cannot permanently lock a queued operation; another tab can reclaim it after lease expiry and retry with the same operation ID.
+33. Account deletion can resume after the Cognito identity and ordinary user-partition DynamoDB records have been deleted, using the durable deletion-job control record and trusted service role.
 
 ## 13. Decisions still required before coding
-The following remain implementation gates and must be recorded before coding: - Exact retention period for operation records and note tombstones. - Final conflict response payload and client UX wording. - Exact retry count/backoff limits and the queue's needs-attention state. - Attachment deletion reconciliation mechanism. - Final IndexedDB schema and schema-upgrade strategy. - Account deletion workflow/orchestration and partial-failure handling. - The source-to-Cognito user identity mapping. - Final policy for legacy Firebase version history and attachment migration. - Exact profile settings/field inventory. - Whether nested folders are supported in the AWS UI. - Browser-tested Firebase offline acknowledgment baseline. - Whether any access pattern emerging from implementation justifies a GSI. - Final page size, continuation-token format, and client loading behavior.
+
+The following remain implementation gates and must be recorded before the relevant implementation work begins:
+
+- Exact retention period for operation records and note tombstones; TTL remains disabled until this is decided.
+- Final conflict response payload and client UX wording.
+- Exact retry count/backoff limits and the queue's `needs-attention` state.
+- Attachment deletion reconciliation mechanism, abandoned-upload cleanup policy, and attachment size/type limits.
+- Final IndexedDB schema, schema-upgrade strategy, and cross-tab lease timing/recovery behavior.
+- Account-deletion workflow/orchestration, control-record retention, and partial-failure/operator-escalation handling.
+- Source-to-Cognito user identity mapping.
+- Final policy for legacy Firebase version history and attachment migration.
+- Exact profile settings/field inventory.
+- Whether nested folders are supported in the AWS UI.
+- Browser-tested Firebase offline acknowledgment baseline.
+- Whether any access pattern emerging from implementation justifies a GSI.
+- Final page size, continuation-token format, and client loading behavior.
+- Canonical request-hash algorithm and exact semantic fields included in the hash.
+- Final API error/response schema and version-conflict payload.
+- Confirmation that the selected 20-digit version-key representation is acceptable for the application's expected lifetime.
+
+These gates do not prevent architecture review, but they must be resolved before the corresponding behavior is implemented or migration scripts are approved.
 
 ## 14. Definition of done for this specification
 
 - Key schema and access patterns reviewed.
 - Server-owned fields and authorization rules explicit.
-- Idempotency transaction and duplicate-request race handled.
-- Version checks and version snapshots atomic.
-- Conflict, deletion, restore, and retry behavior explicit.
+- Idempotency transaction and duplicate-request race handled, including strongly consistent reread behavior.
+- Version checks and version snapshots atomic; key ordering and snapshot semantics are consistent.
+- Conflict, deletion, restore, attachment lifecycle, account cleanup, and retry behavior explicit.
 - Current-to-target field mapping reviewed, including profile, reminders, language, folders, history, and attachments.
 - Pagination and continuation-token behavior specified.
-- Legacy history and attachment migration policies selected.
+- Folder deletion and cross-tab queue coordination are race-safe by design.
+- Legacy history and attachment migration policies selected or explicitly tracked as pre-migration gates.
 - Acceptance tests mapped to implementation tasks.
 - Remaining decisions resolved or tracked as explicit implementation gates.
 - No claim of implementation until code and tests exist.
 **Next phase after review:** Phase 0.2.5 — Terraform Foundation. Begin only after the specification review and implementation gates are accepted. The Firebase production app remains active; this specification does not provision resources or perform cutover.
 
 ## 15. Revision note — audit-informed update
-This revision incorporates the read-only source audit findings: Firebase-managed persistence is distinguished from the planned IndexedDB outbox; current fields and profile/folder/history/attachment migration concerns are documented; version snapshot semantics and legacy history are clarified; pagination is required; and account deletion/cleanup plus migration acceptance tests are expanded. It does not assert that the proposed AWS architecture or behaviors have been implemented.
+This revision incorporates the read-only source audit findings and the final architecture-review corrections: Firebase-managed persistence is distinguished from the planned IndexedDB outbox; current fields and migration concerns are documented; version-key ordering, snapshot semantics, idempotency races, folder deletion, cross-tab queue coordination, attachment lifecycle, and durable account-deletion cleanup are clarified; pagination and acceptance coverage are expanded. It does not assert that the proposed AWS architecture or behaviors have been implemented.
+$
