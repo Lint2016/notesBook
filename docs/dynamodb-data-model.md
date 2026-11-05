@@ -6,6 +6,10 @@
 **Evidence basis:** Read-only repository audit of the current Notebook frontend, Firebase configuration, Firestore/Storage rules, and deployment workflows. Findings below describe inspected code; browser behavior that has not been tested is explicitly marked for verification.
 ---
 
+## Architecture overview
+
+![DynamoDB data model, offline sync, and core safety mechanisms](../assets/mermaid-diagram.svg)
+
 ## 1. Design goals
 
 1. Preserve Notebook's offline-first user experience during the
